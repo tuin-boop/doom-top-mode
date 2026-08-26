@@ -11,17 +11,23 @@ powered by a customized UZDoom renderer.
 ## Download and play
 
 Download the latest Windows ZIP from
-[GitHub Releases](https://github.com/tuin-boop/doom-top-mode/releases/latest),
+[GitHub Releases](https://github.com/tuin-boop/doom-top-mode/releases),
 extract the whole folder, and double-click **`DoomTopModeLauncher.exe`**.
 
 The launcher:
 
+- presents a visible launch window with the detected IWAD and Voxel Doom state;
 - uses the bundled customized UZDoom renderer and `DoomTopMode.pk3`;
 - searches common Steam, GOG and Doom environment-variable locations;
 - opens a file picker if it cannot find `DOOM2.WAD` or `DOOM.WAD`;
 - remembers the selected legal IWAD without copying it into the release;
 - automatically loads `VoxelDoom*.pk3` when placed beside the launcher, in an
   `addons` folder, or in the user's Downloads folder.
+
+Voxel Doom is enabled by default when detected because it is central to the
+intended look. It can add roughly 30–60 seconds while UZDoom converts voxel
+frames into renderable geometry. The launcher remains visible with a loading
+indicator during that work; disabling voxels is mainly useful for diagnosis.
 
 Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 

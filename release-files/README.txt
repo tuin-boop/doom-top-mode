@@ -3,8 +3,10 @@ TUIN'S TOP DOOM - QUICK START
 
 1. Extract the entire ZIP to a normal folder.
 2. Double-click DoomTopModeLauncher.exe.
-3. The launcher searches common Steam/GOG locations for DOOM2.WAD or DOOM.WAD.
-4. If it cannot find one, select your legally owned IWAD in the file picker.
+3. Confirm the detected IWAD, choose whether to load the slower Voxel Doom pack,
+   and press LAUNCH.
+4. The launcher searches common Steam/GOG locations for DOOM2.WAD or DOOM.WAD.
+5. If it cannot find one, select your legally owned IWAD with Browse.
 
 The game remembers the selected IWAD for next time. Delete
 DoomTopModeLauncher.ini or run DoomTopModeLauncher.exe --choose-iwad to choose
