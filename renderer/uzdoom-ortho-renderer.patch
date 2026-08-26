@@ -1,0 +1,469 @@
+diff --git a/src/common/rendering/gl/gl_shader.cpp b/src/common/rendering/gl/gl_shader.cpp
+index 4672b95..dd0f301 100644
+--- a/src/common/rendering/gl/gl_shader.cpp
++++ b/src/common/rendering/gl/gl_shader.cpp
+@@ -310,6 +310,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char *
+ 
+ 			vec4 uCameraPos;
+ 			vec4 uClipLine;
++			vec4 uOrthoWallCutout;
+ 
+ 			float uGlobVis;			// uGlobVis = R_GetGlobVis(r_visibility) / 32.0
+ 			int uPalLightLevels;
+diff --git a/src/common/rendering/gles/gles_renderstate.cpp b/src/common/rendering/gles/gles_renderstate.cpp
+index eefa8a8..1881193 100644
+--- a/src/common/rendering/gles/gles_renderstate.cpp
++++ b/src/common/rendering/gles/gles_renderstate.cpp
+@@ -215,6 +215,7 @@ bool FGLRenderState::ApplyShader()
+ 		activeShader->cur->muNormalViewMatrix.Set(&mHwUniforms->mNormalViewMatrix);
+ 		activeShader->cur->muCameraPos.Set(&mHwUniforms->mCameraPos.X);
+ 		activeShader->cur->muClipLine.Set(&mHwUniforms->mClipLine.X);
++		activeShader->cur->muOrthoWallCutout.Set(&mHwUniforms->mOrthoWallCutout.X);
+ 		activeShader->cur->muGlobVis.Set(mHwUniforms->mGlobVis);
+ 		activeShader->cur->muPalLightLevels.Set(mHwUniforms->mPalLightLevels & 0xFF); // JUST pass the pal levels, clear the top bits
+ 		activeShader->cur->muViewHeight.Set(mHwUniforms->mViewHeight);
+diff --git a/src/common/rendering/gles/gles_shader.cpp b/src/common/rendering/gles/gles_shader.cpp
+index e141424..1679c8f 100644
+--- a/src/common/rendering/gles/gles_shader.cpp
++++ b/src/common/rendering/gles/gles_shader.cpp
+@@ -265,6 +265,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump_, const char *
+ 
+ 		uniform	vec4 uCameraPos;
+ 		uniform	vec4 uClipLine;
++		uniform	vec4 uOrthoWallCutout;
+ 
+ 		uniform	float uGlobVis;			// uGlobVis = R_GetGlobVis(r_visibility) / 32.0
+ 		uniform	int uPalLightLevels;
+@@ -566,6 +567,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump_, const char *
+ 
+ 	shaderData->muCameraPos.Init(shaderData->hShader, "uCameraPos");
+ 	shaderData->muClipLine.Init(shaderData->hShader, "uClipLine");
++	shaderData->muOrthoWallCutout.Init(shaderData->hShader, "uOrthoWallCutout");
+ 
+ 	shaderData->muGlobVis.Init(shaderData->hShader, "uGlobVis");
+ 	shaderData->muPalLightLevels.Init(shaderData->hShader, "uPalLightLevels");
+diff --git a/src/common/rendering/gles/gles_shader.h b/src/common/rendering/gles/gles_shader.h
+index ff9e27c..f1c96b3 100644
+--- a/src/common/rendering/gles/gles_shader.h
++++ b/src/common/rendering/gles/gles_shader.h
+@@ -307,6 +307,7 @@ public: class ShaderVariantData
+ 
+ 		FUniform4f muCameraPos;
+ 		FUniform4f muClipLine;
++		FUniform4f muOrthoWallCutout;
+ 
+ 		FBufferedUniform1f muGlobVis;
+ 		FBufferedUniform1i muPalLightLevels;
+diff --git a/src/common/rendering/hwrenderer/data/hw_renderstate.h b/src/common/rendering/hwrenderer/data/hw_renderstate.h
+index 266df72..79993b2 100644
+--- a/src/common/rendering/hwrenderer/data/hw_renderstate.h
++++ b/src/common/rendering/hwrenderer/data/hw_renderstate.h
+@@ -333,6 +333,11 @@ public:
+ 		mStreamData.uVertexNormal = { norm.X, norm.Y, norm.Z, 0.f };
+ 	}
+ 
++	void SetNormal(FVector3 norm, float wallMarker)
++	{
++		mStreamData.uVertexNormal = { norm.X, norm.Y, norm.Z, wallMarker };
++	}
++
+ 	void SetNormal(float x, float y, float z)
+ 	{
+ 		mStreamData.uVertexNormal = { x, y, z, 0.f };
+diff --git a/src/common/rendering/hwrenderer/data/hw_viewpointuniforms.h b/src/common/rendering/hwrenderer/data/hw_viewpointuniforms.h
+index aadb169..ad92442 100644
+--- a/src/common/rendering/hwrenderer/data/hw_viewpointuniforms.h
++++ b/src/common/rendering/hwrenderer/data/hw_viewpointuniforms.h
+@@ -36,6 +36,8 @@ struct HWViewpointUniforms
+ 	VSMatrix mNormalViewMatrix;
+ 	FVector4 mCameraPos;
+ 	FVector4 mClipLine;
++	// xyz = orthographic focus actor in renderer coordinates, w = cutout radius.
++	FVector4 mOrthoWallCutout;
+ 
+ 	float mGlobVis = 1.f;
+ 	int mPalLightLevels = 0;
+diff --git a/src/common/rendering/hwrenderer/data/hw_vrmodes.cpp b/src/common/rendering/hwrenderer/data/hw_vrmodes.cpp
+index a7f513b..6642731 100644
+--- a/src/common/rendering/hwrenderer/data/hw_vrmodes.cpp
++++ b/src/common/rendering/hwrenderer/data/hw_vrmodes.cpp
+@@ -44,6 +44,12 @@ CVAR(Float, vr_screendist, 0.80f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
+ // default conversion between (vertical) DOOM units and meters
+ CVAR(Float, vr_hunits_per_meter, 41.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
+ 
++// Fraction of the orthographic camera distance to discard in front of the
++// viewpoint. Zero preserves UZDoom's original projection. This is useful for
++// isometric games where a camera outside the map can otherwise be covered by
++// a nearby one-sided boundary wall.
++CVAR(Float, r_ortho_cutaway, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
++
+ 
+ #define isqrt2 0.7071067812f
+ static VRMode vrmi_mono = { 1, 1.f, 1.f, 1.f,{ { 0.f, 1.f },{ 0.f, 0.f } } };
+@@ -140,7 +146,8 @@ VSMatrix VREyeInfo::GetProjection(float fov, float aspectRatio, float fovRatio,
+ 
+ 	if (iso_ortho) // Orthographic projection for isometric viewpoint
+ 	{
+-		double zNear = -3.0/fovRatio; // screen->GetZNear();
++		double cutaway = clamp((double)r_ortho_cutaway, 0.0, 0.95);
++		double zNear = cutaway > 0.0 ? cutaway/fovRatio : -3.0/fovRatio;
+ 		double zFar = screen->GetZFar();
+ 
+ 		double fH = tan(DEG2RAD(fov) / 2) / fovRatio;
+diff --git a/src/common/rendering/vulkan/shaders/vk_shader.cpp b/src/common/rendering/vulkan/shaders/vk_shader.cpp
+index 237dd50..314b0f2 100644
+--- a/src/common/rendering/vulkan/shaders/vk_shader.cpp
++++ b/src/common/rendering/vulkan/shaders/vk_shader.cpp
+@@ -195,6 +195,7 @@ static const char *shaderBindings = R"(
+ 
+ 		vec4 uCameraPos;
+ 		vec4 uClipLine;
++		vec4 uOrthoWallCutout;
+ 
+ 		float uGlobVis;			// uGlobVis = R_GetGlobVis(r_visibility) / 32.0
+ 		int uPalLightLevels;
+diff --git a/src/rendering/hwrenderer/hw_models.cpp b/src/rendering/hwrenderer/hw_models.cpp
+index 9de1b64..f9acadd 100644
+--- a/src/rendering/hwrenderer/hw_models.cpp
++++ b/src/rendering/hwrenderer/hw_models.cpp
+@@ -45,12 +45,21 @@ VSMatrix FHWModelRenderer::GetViewToWorldMatrix()
+ void FHWModelRenderer::BeginDrawModel(FRenderStyle style, int smf_flags, const VSMatrix &objectToWorldMatrix, bool mirrored)
+ {
+ 	state.SetDepthFunc(DF_LEqual);
++	// Orthographic/isometric views can place long, fast-moving models across a
++	// projection depth boundary depending on their world direction. Clamp model
++	// and voxel depth instead of dropping their geometry at that boundary.
++	if (di->Viewpoint.bDoOrtho) state.SetDepthClamp(true);
++	// Translucent sprites already receive this small forward bias in the sprite
++	// renderer. Apply the same treatment to additive/translucent models and
++	// voxels so the legacy orthographic depth range cannot bury them in floors.
++	if (di->Viewpoint.bDoOrtho && !(style == DefaultRenderStyle()))
++		state.SetDepthBias(-1, -128);
+ 	state.EnableTexture(true);
+ 	// [BB] In case the model should be rendered translucent, do back face culling.
+ 	// This solves a few of the problems caused by the lack of depth sorting.
+ 	// [Nash] Don't do back face culling if explicitly specified in MODELDEF
+ 	// TO-DO: Implement proper depth sorting.
+-	if ((smf_flags & MDL_FORCECULLBACKFACES) || (!(style == DefaultRenderStyle()) && !(smf_flags & MDL_DONTCULLBACKFACES)))
++	if (!di->Viewpoint.bDoOrtho && ((smf_flags & MDL_FORCECULLBACKFACES) || (!(style == DefaultRenderStyle()) && !(smf_flags & MDL_DONTCULLBACKFACES))))
+ 	{
+ 		state.SetCulling((mirrored ^ portalState.isMirrored()) ? Cull_CCW : Cull_CW);
+ 	}
+@@ -63,8 +72,11 @@ void FHWModelRenderer::EndDrawModel(FRenderStyle style, int smf_flags)
+ {
+ 	state.SetBoneIndexBase(-1);
+ 	state.EnableModelMatrix(false);
++	if (di->Viewpoint.bDoOrtho && !(style == DefaultRenderStyle()))
++		state.ClearDepthBias();
++	if (di->Viewpoint.bDoOrtho) state.SetDepthClamp(false);
+ 	state.SetDepthFunc(DF_Less);
+-	if ((smf_flags & MDL_FORCECULLBACKFACES) || (!(style == DefaultRenderStyle()) && !(smf_flags & MDL_DONTCULLBACKFACES)))
++	if (!di->Viewpoint.bDoOrtho && ((smf_flags & MDL_FORCECULLBACKFACES) || (!(style == DefaultRenderStyle()) && !(smf_flags & MDL_DONTCULLBACKFACES))))
+ 		state.SetCulling(Cull_None);
+ }
+ 
+diff --git a/src/rendering/hwrenderer/scene/hw_bsp.cpp b/src/rendering/hwrenderer/scene/hw_bsp.cpp
+index 449362d..054dad1 100644
+--- a/src/rendering/hwrenderer/scene/hw_bsp.cpp
++++ b/src/rendering/hwrenderer/scene/hw_bsp.cpp
+@@ -45,6 +45,7 @@ CVAR(Bool, gl_multithread, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+ EXTERN_CVAR(Float, r_actorspriteshadowdist)
+ EXTERN_CVAR(Bool, r_radarclipper)
+ EXTERN_CVAR(Bool, r_dithertransparency)
++EXTERN_CVAR(Float, r_ortho_wallcutout)
+ 
+ thread_local bool isWorkerThread;
+ ctpl::thread_pool renderPool(1);
+@@ -257,6 +258,10 @@ void HWDrawInfo::UnclipSubsector(subsector_t *sub)
+ void HWDrawInfo::AddLine (seg_t *seg, bool portalclip)
+ {
+ 	const bool doOob = Viewpoint.bDoOob;
++	// A shader cutout can only reveal useful scenery if the BSP traversal also
++	// submits geometry behind foreground walls. Depth testing still keeps that
++	// geometry hidden everywhere outside the cutout aperture.
++	const bool wallCutoutTraversal = Viewpoint.bDoOrtho && r_ortho_wallcutout > 0.f;
+ 
+ #ifdef _DEBUG
+ 	if (seg->linedef && seg->linedef->Index() == 38)
+@@ -337,7 +342,7 @@ void HWDrawInfo::AddLine (seg_t *seg, bool portalclip)
+ 	// later tries to remove the flag from a line.
+ 	if (!seg->backsector || (seg->sidedef->Flags & WALLF_BLOCKRENDERING))
+ 	{
+-		if(!doOob)
++		if(!doOob && !wallCutoutTraversal)
+ 			if (!(seg->sidedef->Flags & WALLF_DITHERTRANS_MID)) clipper.SafeAddClipRange(startAngle, endAngle);
+ 	}
+ 	else if (!ispoly)	// Two-sided polyobjects never obstruct the view
+@@ -365,7 +370,7 @@ void HWDrawInfo::AddLine (seg_t *seg, bool portalclip)
+ 
+ 			if (hw_CheckClip(seg->sidedef, currentsector, backsector))
+ 			{
+-				if(!doOob && !(seg->sidedef->Flags & WALLF_DITHERTRANS_MID))
++				if(!doOob && !wallCutoutTraversal && !(seg->sidedef->Flags & WALLF_DITHERTRANS_MID))
+ 					clipper.SafeAddClipRange(startAngle, endAngle);
+ 			}
+ 		}
+@@ -572,7 +577,18 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
+ 	{
+ 		auto thing = p->m_thing;
+ 		if (thing->validcount == validcount) continue;
+-		thing->validcount = validcount;
++
++		// In an orthographic view, do not let the BSP traversal claim projectile
++		// actors. Their owning subsector can be accepted even though the actor's
++		// projected position lies outside that subsector's useful screen region,
++		// which previously made translucent plasma and tracers disappear from
++		// particular camera diagonals. RenderOrthoProjectiles submits each of them
++		// exactly once after traversal, independently of subsector ownership.
++		if (Viewpoint.bDoOrtho &&
++			((thing->flags & MF_MISSILE) != 0 || thing->GetClass()->IsDescendantOf("DTMFlyingTracer")))
++		{
++			continue;
++		}
+ 
+ 		if(Viewpoint.bDoOob && thing->Sector->isSecret() && thing->Sector->wasSecret() && !r_radarclipper) continue; // This covers things that are touching non-secret sectors
+ 		FIntCVar *cvar = thing->GetInfo()->distancecheck;
+@@ -588,6 +604,7 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
+ 		// If this thing is in a map section that's not in view it can't possibly be visible
+ 		if (CurrentMapSections[thing->subsector->mapsection])
+ 		{
++			thing->validcount = validcount;
+ 			HWSprite sprite;
+ 
+ 			// [Nash] draw sprite shadow
+@@ -1005,6 +1022,39 @@ void HWDrawInfo::RenderOrthoNoFog()
+ 	}
+ }
+ 
++// Orthographic views can display a projectile even when the perspective-oriented
++// BSP/radar traversal rejects the subsector that owns it. RenderThings deliberately
++// leaves these actors unclaimed in orthographic mode, so this pass becomes their
++// single authoritative submission path rather than an unreliable fallback.
++// Depth testing still handles walls and other world geometry normally.
++void HWDrawInfo::RenderOrthoProjectiles()
++{
++	if (!Viewpoint.bDoOrtho) return;
++
++	auto renderProjectiles = [this](auto &iterator)
++	{
++		AActor *thing;
++		while ((thing = iterator.Next()) != nullptr)
++		{
++			if (thing->validcount == validcount) continue;
++
++			const bool isProjectile = (thing->flags & MF_MISSILE) != 0;
++			const bool isDoomTopTracer = thing->GetClass()->IsDescendantOf("DTMFlyingTracer");
++			if (!isProjectile && !isDoomTopTracer) continue;
++			if (thing->Sector == nullptr || thing->subsector == nullptr) continue;
++
++			thing->validcount = validcount;
++			HWSprite sprite;
++			sprite.Process(this, thing, thing->Sector, in_area, false);
++		}
++	};
++
++	auto worldActors = Level->GetThinkerIterator<AActor>();
++	renderProjectiles(worldActors);
++	auto clientActors = Level->GetClientSideThinkerIterator<AActor>();
++	renderProjectiles(clientActors);
++}
++
+ void HWDrawInfo::RenderBSP(void *node, bool drawpsprites)
+ {
+ 	ClearDitherTargets();
+@@ -1044,6 +1094,8 @@ void HWDrawInfo::RenderBSP(void *node, bool drawpsprites)
+ 		Bsp.Unclock();
+ 	}
+ 
++	RenderOrthoProjectiles();
++
+ 	// Make rendered targets set dither transparency flags on level geometry for next pass
+ 	// Can't do this inside DoSubsector() because both Trace() and P_CheckSight() affect 'validcount' global variable
+ 	for (int ii = 0; ii < MAXDITHERACTORS; ii++)
+diff --git a/src/rendering/hwrenderer/scene/hw_drawinfo.cpp b/src/rendering/hwrenderer/scene/hw_drawinfo.cpp
+index f458e56..b0a203e 100644
+--- a/src/rendering/hwrenderer/scene/hw_drawinfo.cpp
++++ b/src/rendering/hwrenderer/scene/hw_drawinfo.cpp
+@@ -16,6 +16,7 @@
+ */
+ 
+ #include "a_sharedglobal.h"
++#include "c_dispatch.h"
+ #include "r_utility.h"
+ #include "r_sky.h"
+ #include "d_player.h"
+@@ -49,6 +50,24 @@ CVAR(Int, gl_enhanced_nv_stealth, 3, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+ CVAR(Bool, gl_texture, true, 0)
+ CVAR(Float, gl_mask_threshold, 0.5f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+ CVAR(Float, gl_mask_sprite_threshold, 0.5f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
++CVAR(Float, r_ortho_wallcutout, 0.f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
++
++// Keep the experiment's toggle deterministic. The generic console `toggle`
++// command can retain intermediate floating-point values from the config, which
++// made the aperture appear to return at an unexpectedly small size.
++CCMD(dtm_toggle_wall_cutout)
++{
++	if (r_ortho_wallcutout > 0.f)
++	{
++		r_ortho_wallcutout = 0.f;
++		Printf("Top-down wall cutout: OFF\n");
++	}
++	else
++	{
++		r_ortho_wallcutout = 104.f;
++		Printf("Top-down wall cutout: ON (radius 104)\n");
++	}
++}
+ 
+ CVAR(Bool, gl_coronas, true, CVAR_ARCHIVE);
+ 
+@@ -428,6 +447,15 @@ void HWDrawInfo::SetupView(FRenderState &state, float vx, float vy, float vz, bo
+ 	vp.SetViewAngle(r_viewwindow);
+ 	SetViewMatrix(vp.HWAngles, vx, vy, vz, mirror, planemirror);
+ 	SetCameraPos(vp.Pos);
++	VPUniforms.mOrthoWallCutout = { 0.f, 0.f, 0.f, 0.f };
++	if (vp.bDoOrtho && vp.camera && vp.camera->tracer && r_ortho_wallcutout > 0.f)
++	{
++		auto focus = vp.camera->tracer->Pos();
++		VPUniforms.mOrthoWallCutout = {
++			(float)focus.X, (float)focus.Z, (float)focus.Y,
++			(float)clamp((double)r_ortho_wallcutout, 16.0, 512.0)
++		};
++	}
+ 	VPUniforms.CalcDependencies();
+ 	vpIndex = screen->mViewpoints->SetViewpoint(state, &VPUniforms);
+ }
+diff --git a/src/rendering/hwrenderer/scene/hw_drawinfo.h b/src/rendering/hwrenderer/scene/hw_drawinfo.h
+index 70360f1..04347e9 100644
+--- a/src/rendering/hwrenderer/scene/hw_drawinfo.h
++++ b/src/rendering/hwrenderer/scene/hw_drawinfo.h
+@@ -256,6 +256,7 @@ public:
+ 	HWPortal * FindPortal(const void * src);
+ 	void RenderBSPNode(void *node);
+ 	void RenderOrthoNoFog();
++	void RenderOrthoProjectiles();
+ 	void RenderBSP(void *node, bool drawpsprites);
+ 
+ 	static HWDrawInfo *StartDrawInfo(FLevelLocals *lev, HWDrawInfo *parent, FRenderViewpoint &parentvp, HWViewpointUniforms *uniforms);
+diff --git a/src/rendering/hwrenderer/scene/hw_skyportal.cpp b/src/rendering/hwrenderer/scene/hw_skyportal.cpp
+index a3c99b1..72a737f 100644
+--- a/src/rendering/hwrenderer/scene/hw_skyportal.cpp
++++ b/src/rendering/hwrenderer/scene/hw_skyportal.cpp
+@@ -26,6 +26,11 @@
+ #include "hw_renderstate.h"
+ #include "skyboxtexture.h"
+ 
++// The classic cylindrical sky dome is designed for perspective projection.
++// In an orthographic isometric view it crosses the level as enormous curved
++// polygons, so allow it to be suppressed while leaving normal views intact.
++CVAR(Bool, r_ortho_hidesky, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
++
+ //-----------------------------------------------------------------------------
+ //
+ //
+@@ -33,6 +38,11 @@
+ //-----------------------------------------------------------------------------
+ void HWSkyPortal::DrawContents(HWDrawInfo *di, FRenderState &state)
+ {
++	if (r_ortho_hidesky && di->Viewpoint.bDoOrtho)
++	{
++		return;
++	}
++
+ 	bool drawBoth = false;
+ 	auto &vp = di->Viewpoint;
+ 
+diff --git a/src/rendering/hwrenderer/scene/hw_walls.cpp b/src/rendering/hwrenderer/scene/hw_walls.cpp
+index 5921412..a063558 100644
+--- a/src/rendering/hwrenderer/scene/hw_walls.cpp
++++ b/src/rendering/hwrenderer/scene/hw_walls.cpp
+@@ -361,6 +361,35 @@ void HWWall::RenderTranslucentWall(HWWallDispatcher*di, FRenderState &state)
+ //
+ //
+ //==========================================================================
++
++static bool WallOccludesOrthoFocus(const HWWall& wall, const HWWallDispatcher* dispatcher)
++{
++	if (!dispatcher || !dispatcher->di) return false;
++
++	const auto& vp = dispatcher->di->Viewpoint;
++	if (!vp.bDoOrtho || !vp.camera || !vp.camera->tracer) return false;
++
++	const auto focus = vp.camera->tracer->Pos();
++	const double rayX = focus.X - vp.Pos.X;
++	const double rayY = focus.Y - vp.Pos.Y;
++	const double wallX = wall.glseg.x2 - wall.glseg.x1;
++	const double wallY = wall.glseg.y2 - wall.glseg.y1;
++	const double denominator = rayX * wallY - rayY * wallX;
++	if (fabs(denominator) < 0.000001) return false;
++
++	const double offsetX = wall.glseg.x1 - vp.Pos.X;
++	const double offsetY = wall.glseg.y1 - vp.Pos.Y;
++	const double rayFraction = (offsetX * wallY - offsetY * wallX) / denominator;
++	const double wallFraction = (offsetX * rayY - offsetY * rayX) / denominator;
++	if (rayFraction <= 0.0 || rayFraction >= 1.0 || wallFraction < 0.0 || wallFraction > 1.0)
++		return false;
++
++	const double rayZ = vp.Pos.Z + rayFraction * (focus.Z - vp.Pos.Z);
++	const double wallBottom = wall.zbottom[0] + wallFraction * (wall.zbottom[1] - wall.zbottom[0]);
++	const double wallTop = wall.ztop[0] + wallFraction * (wall.ztop[1] - wall.ztop[0]);
++	return rayZ >= min(wallBottom, wallTop) - 4.0 && rayZ <= max(wallBottom, wallTop) + 4.0;
++}
++
+ void HWWall::DrawWall(HWWallDispatcher*di, FRenderState &state, bool translucent)
+ {
+ 	if (screen->BuffersArePersistent())
+@@ -372,7 +401,8 @@ void HWWall::DrawWall(HWWallDispatcher*di, FRenderState &state, bool translucent
+ 		MakeVertices(!!(flags & HWWall::HWF_TRANSLUCENT));
+ 	}
+ 
+-	state.SetNormal(glseg.Normal());
++	// Mark only the wall polygon that actually crosses the camera-to-player ray.
++	state.SetNormal(glseg.Normal(), WallOccludesOrthoFocus(*this, di) ? 1.f : 0.f);
+ 	if (!translucent)
+ 	{
+ 		RenderTexturedWall(di, state, HWWall::RWF_TEXTURED);
+@@ -394,6 +424,7 @@ void HWWall::DrawWall(HWWallDispatcher*di, FRenderState &state, bool translucent
+ 			break;
+ 		}
+ 	}
++	state.SetNormal(0, 0, 0);
+ }
+ 
+ //==========================================================================
+diff --git a/wadsrc/static/shaders/glsl/main.fp b/wadsrc/static/shaders/glsl/main.fp
+index 021afbe..1fc7d7f 100644
+--- a/wadsrc/static/shaders/glsl/main.fp
++++ b/wadsrc/static/shaders/glsl/main.fp
+@@ -836,6 +836,31 @@ void main()
+ 	if (ClipDistanceA.x < 0 || ClipDistanceA.y < 0 || ClipDistanceA.z < 0 || ClipDistanceA.w < 0 || ClipDistanceB.x < 0) discard;
+ #endif
+ 
++	// Experimental Diablo-style visibility cutout for orthographic cameras.
++	// uVertexNormal.w is set only for wall draws, leaving actors, voxels,
++	// projectiles, floors and ceilings untouched. Walls toward the camera are
++	// removed through a clean screen-space aperture centered on the focus.
++	if (uOrthoWallCutout.w > 0.0 && uVertexNormal.w > 0.5)
++	{
++		vec3 focusToCamera = uCameraPos.xyz - uOrthoWallCutout.xyz;
++		float cameraDistance = length(focusToCamera);
++		if (cameraDistance > 0.0)
++		{
++			vec3 focusToPixel = pixelpos.xyz - uOrthoWallCutout.xyz;
++			float towardCamera = dot(focusToPixel, focusToCamera / cameraDistance);
++			vec4 focusClip = ProjectionMatrix * ViewMatrix * vec4(uOrthoWallCutout.xyz, 1.0);
++			vec4 pixelClip = ProjectionMatrix * ViewMatrix * vec4(pixelpos.xyz, 1.0);
++			vec2 screenDelta = pixelClip.xy / pixelClip.w - focusClip.xy / focusClip.w;
++			float screenAspect = abs(ProjectionMatrix[1][1] / ProjectionMatrix[0][0]);
++			screenDelta.x *= screenAspect;
++			float apertureRadius = clamp(uOrthoWallCutout.w / 640.0, 0.05, 0.60);
++			if (towardCamera > 8.0 && towardCamera < cameraDistance - 8.0 && length(screenDelta) < apertureRadius)
++			{
++				discard;
++			}
++		}
++	}
++
+ #ifndef LEGACY_USER_SHADER
+ 	Material material;
+ 

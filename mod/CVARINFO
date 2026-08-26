@@ -1,0 +1,9 @@
+User Bool DTM_AimAssist = true;
+User Float DTM_AimDistance = 1200.0;
+User Float DTM_AimCone = 55.0;
+User Float DTM_AimTurnSpeed = 7.0;
+User Bool DTM_AutoCamera = false;
+User Bool DTM_Flashlight = false;
+User Int DTM_FlashlightRange = 512;
+User Float DTM_FlashlightIntensity = 1.0;
+User Bool DTM_CombatFX = true;

@@ -1,0 +1,7 @@
+/build/
+/runtime/
+/release/
+/backups/
+*.log
+*.ini
+*.user

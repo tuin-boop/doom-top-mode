@@ -1,0 +1,65 @@
+Model DTMFlyingTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.45 1.25 1.25
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}
+
+Model DTMEnemyFlyingTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.45 1.25 1.25
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}
+
+Model DTMPistolTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.34 0.90 0.90
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}
+
+Model DTMChaingunTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.40 0.78 0.78
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}
+
+Model DTMShotgunTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.28 0.72 0.72
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}
+
+Model DTMSuperShotgunTracer
+{
+    Path "models/projectiles"
+    Model 0 "tracer.md3"
+    Skin 0 "tracer1.tga"
+    Scale 0.24 0.65 0.65
+    PitchFromMomentum
+    DontCullBackfaces
+    FrameIndex TRAC A 0 0
+}

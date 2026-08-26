@@ -1,0 +1,38 @@
+addkeysection "Top-Down Doom" "Top-Down Doom"
+
+addmenukey "Rotate camera left" "dtm_cam_left"
+alias "dtm_cam_left" "netevent DTM_CAM_LEFT"
+defaultbind Q "dtm_cam_left"
+
+addmenukey "Rotate camera right" "dtm_cam_right"
+alias "dtm_cam_right" "netevent DTM_CAM_RIGHT"
+defaultbind E "dtm_cam_right"
+
+addmenukey "Recenter camera" "dtm_cam_center"
+alias "dtm_cam_center" "netevent DTM_CAM_CENTER"
+defaultbind Z "dtm_cam_center"
+
+addmenukey "Cycle camera pitch" "dtm_cam_pitch"
+alias "dtm_cam_pitch" "netevent DTM_CAM_PITCH"
+defaultbind V "dtm_cam_pitch"
+
+addmenukey "Zoom in" "dtm_zoom_in"
+alias "dtm_zoom_in" "netevent DTM_ZOOM_IN"
+
+addmenukey "Zoom out" "dtm_zoom_out"
+alias "dtm_zoom_out" "netevent DTM_ZOOM_OUT"
+
+addmenukey "Toggle aim assist" "dtm_toggle_aim"
+alias "dtm_toggle_aim" "netevent DTM_TOGGLE_AIM"
+defaultbind C "dtm_toggle_aim"
+
+addmenukey "Toggle flashlight" "dtm_toggle_flashlight"
+alias "dtm_toggle_flashlight" "netevent DTM_TOGGLE_FLASHLIGHT"
+defaultbind F "dtm_toggle_flashlight"
+
+addmenukey "Toggle automatic camera" "dtm_toggle_auto_camera"
+alias "dtm_toggle_auto_camera" "netevent DTM_TOGGLE_AUTO_CAMERA"
+defaultbind B "dtm_toggle_auto_camera"
+
+addmenukey "Toggle experimental wall cutout" "dtm_toggle_wall_cutout"
+defaultbind N "dtm_toggle_wall_cutout"

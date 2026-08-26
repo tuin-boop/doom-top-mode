@@ -1,0 +1,5 @@
+Sprite DTLKA0, 256, 256
+{
+    Offset 128, 128
+    Patch "DTMLOCK", 0, 0
+}

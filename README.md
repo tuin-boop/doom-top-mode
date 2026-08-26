@@ -1,0 +1,121 @@
+# Tuin's Top Doom
+
+![Tuin's Top Doom](assets/tuins-top-doom-banner.png)
+
+An experimental isometric/top-down action RPG conversion for classic Doom,
+powered by a customized UZDoom renderer.
+
+> **Experimental release:** gameplay, balance and renderer behavior are still
+> being tuned. Keep saves made with different versions separate.
+
+## Download and play
+
+Download the latest Windows ZIP from
+[GitHub Releases](https://github.com/tuin-boop/doom-top-mode/releases/latest),
+extract the whole folder, and double-click **`DoomTopModeLauncher.exe`**.
+
+The launcher:
+
+- uses the bundled customized UZDoom renderer and `DoomTopMode.pk3`;
+- searches common Steam, GOG and Doom environment-variable locations;
+- opens a file picker if it cannot find `DOOM2.WAD` or `DOOM.WAD`;
+- remembers the selected legal IWAD without copying it into the release;
+- automatically loads `VoxelDoom*.pk3` when placed beside the launcher, in an
+  `addons` folder, or in the user's Downloads folder.
+
+Commercial Doom IWADs and Voxel Doom are **not redistributed**.
+
+## Current prototype
+
+- Orthographic isometric follow camera
+- Screen-relative WASD movement
+- Mouse-directed facing
+- Sticky visible-monster aim assist with smooth automatic player turning
+- Warm, pitch-aware dynamic spotlight flashlight with `F`
+- Compact gunmetal tactical HUD with live vitals, armor, ammo, aim and light state
+- Aim-lock target card showing monster name and live HP
+- Center crosshair disabled; the lock marker follows the selected monster in world space
+- Experimental player-centered wall cutout (`N` reliably toggles it with a console confirmation; `r_ortho_wallcutout 0` disables it)
+- World-space lock marker attached directly to the selected monster
+- 90-degree camera rotation with `Q` and `E`
+- Three camera pitches with `V` (35°, 48°, and 60°)
+- Camera zoom with `[` and `]`
+- Automatic boundary-wall avoidance, toggleable with `B`
+- Emergency near-overhead view when every diagonal viewpoint is obstructed
+- Custom UZDoom orthographic near-plane cutaway for hiding intrusive boundary walls
+- Orthographic sky-dome suppression (the perspective dome otherwise becomes a giant curved texture)
+- Aim-assist toggle with `C`
+- Camera recenter with `Z`
+- Automatic camera avoidance is disabled by default; `B` enables it when wanted
+- Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
+- Epic, Mythic, and Godly monsters carry color-coded world glows
+- Some Mythic and Godly monsters gain relentless fast-chase behavior
+- Rolled weapon drops never auto-pick up: approach one to compare it with the owned version, then press Use to equip it without deleting other weapon types
+- At 85% kills, one surviving monster is promoted in place into a red-lit boss of its original species and always drops weighted Rare-or-better loot
+- Canonical E1M8, E2M8, and E3M8 bosses receive the same boss treatment; bosses have 5x base health, except Cyberdemons and Spider Masterminds at 2.5x
+- Optional Cheello Voxel Doom II 2.4 pack, loaded as a separate add-on
+
+## Run from source
+
+First run:
+
+```powershell
+.\setup.ps1
+```
+
+Then:
+
+```powershell
+.\play.ps1
+```
+
+Alternatively, double-click `Play Doom Top Mode.bat`. This launcher uses a
+process-local PowerShell execution-policy bypass, so it works when `.ps1` files
+are blocked without changing the computer's permanent policy.
+
+Use `.\play.ps1 -NoVoxels` to test only the gameplay code.
+
+The development launcher prefers the custom renderer in
+`runtime\uzdoom-experimental` and starts
+with the projection cutaway disabled. Nearby walls are handled by the dedicated
+screen-space wall aperture instead, without clipping floors on maps with large
+height changes such as Doom II MAP29.
+
+The legacy projection cutaway remains available for renderer diagnosis:
+
+```powershell
+.\play.ps1 -Cutaway 0.15
+```
+
+Return it to `0.0` after testing. The custom renderer gives translucent models
+the same small depth bias as translucent sprites, preserving their visibility
+without clipping tall-map geometry. You can also tune the legacy cutaway live in
+the console with `r_ortho_cutaway 0.0`. Use
+`.\play.ps1 -StockRenderer` to compare against the
+unmodified renderer; on that executable the extra CVar is simply unavailable.
+
+The classic cylindrical Doom sky does not project correctly through this
+orthographic camera. The custom renderer therefore skips sky-portal contents in
+orthographic views with `r_ortho_hidesky 1`; perspective views remain unchanged.
+Use `.\play.ps1 -ShowSky` to compare the original sky rendering.
+
+The complete renderer modification is recorded in
+[`renderer/uzdoom-ortho-renderer.patch`](renderer/uzdoom-ortho-renderer.patch)
+against UZDoom 5.0.0-rc.3 commit
+`4ca590945524330d94530c0558c8d547d457e16c`. It contains the orthographic wall
+aperture, translucent sprite/model depth handling, projectile visibility and
+sky suppression work used by the release.
+
+The setup script copies an already-installed `DOOM2.WAD` into the ignored
+`runtime` directory. Doom's commercial game data is never included in this
+repository or in the generated PK3.
+
+## Credits
+
+Camera and aiming implementation adapted from Dileep V. Reddy's CC0
+`gzdoom_isometric_demo` and Jay0's Aim Assist Mod v0.8.
+
+Voxel Doom II assets are by Cheello and the Voxel Doom Team and remain a
+separately downloaded add-on under their own license. UZDoom is GPLv3+.
+
+See [THIRD_PARTY.md](THIRD_PARTY.md) for source and redistribution details.
