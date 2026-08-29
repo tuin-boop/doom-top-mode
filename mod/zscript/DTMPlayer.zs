@@ -37,6 +37,7 @@ class DTMPlayer : DoomPlayer
         // strong ground braking and equal movement in every screen direction.
         Player.ForwardMove 1.25, 1.25;
         Player.SideMove 1.25, 1.25;
+        Player.WeaponSlot 3, "Shotgun", "DTMRiotShotgun", "SuperShotgun";
         // Normal and experimental plasma rifles share slot 6; repeated presses
         // cycle between owned variants.
         Player.WeaponSlot 6, "ID24Incinerator", "PlasmaRifle", "DTMTwinPlasmaRifle";

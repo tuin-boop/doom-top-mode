@@ -60,6 +60,8 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Levels grant +5% ammo capacity each, and every monster kill restores a small amount of each ammunition type already carried
 - Epic-or-better loot can roll a twin green plasma rifle: it fires two weaker Arachnotron-style bolts for two cells and shares slot `6` with the normal plasma rifle
 - Testing cheat: enter `dtm_spawn_dual_plasma` in the console to summon an Epic twin-plasma drop at the player's current level
+- Rare-or-better loot can roll a riot shotgun: five lighter pellets in a tight cone with roughly twice the normal shotgun's fire rate; it shares slot `3` with the other shotguns
+- Riot shotgun testing cheat: enter `dtm_spawn_riot_shotgun` in the console to summon a Rare drop at the player's current level
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted
 - Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
 - Epic, Mythic, and Godly monsters carry color-coded world glows

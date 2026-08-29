@@ -263,6 +263,59 @@ class DTMTwinPlasmaRifle : PlasmaRifle
     }
 }
 
+// A close-quarters semi-automatic sidegrade: much quicker recovery and a
+// tighter cone, balanced by only five lighter pellets per shell.
+class DTMRiotShotgun : Shotgun
+{
+    Default
+    {
+        Weapon.SelectionOrder 1295;
+        Weapon.AmmoUse 1;
+        Weapon.AmmoGive 8;
+        Weapon.AmmoType "Shell";
+        Inventory.PickupMessage "Riot shotgun acquired.";
+        Obituary "$OB_MPSHOTGUN";
+        Tag "RIOT SHOTGUN";
+    }
+
+    action void A_FireRiotShotgun()
+    {
+        if (player == null) return;
+        A_StartSound("weapons/shotgf", CHAN_WEAPON);
+        Weapon weap = player.ReadyWeapon;
+        if (weap != null && invoker == weap && stateinfo != null &&
+            stateinfo.mStateType == STATE_Psprite)
+        {
+            if (!weap.DepleteAmmo(weap.bAltFire, true)) return;
+            player.SetPsprite(PSP_FLASH, weap.FindState('Flash'), true);
+        }
+        player.mo.PlayAttacking2();
+        double shotPitch = BulletSlope();
+        for (int pellet = 0; pellet < 5; pellet++)
+        {
+            int pelletDamage = 4 * Random[RiotShot](1, 3);
+            double shotAngle = angle +
+                Random2[RiotShot]() * (2.2 / 256.0);
+            double verticalAngle = shotPitch;
+            if (GetCVar("vertspread") && !sv_novertspread)
+                verticalAngle += Random2[RiotShot]() * (1.5 / 256.0);
+            LineAttack(shotAngle, PLAYERMISSILERANGE, verticalAngle,
+                pelletDamage, 'Hitscan', 'BulletPuff');
+        }
+    }
+
+    States
+    {
+    Fire:
+        SHTG A 2;
+        SHTG A 4 A_FireRiotShotgun;
+        SHTG B 4;
+        SHTG A 4;
+        SHTG A 8 A_ReFire;
+        Goto Ready;
+    }
+}
+
 class DTMWeaponStats : Inventory
 {
     // Legacy single-roll fields remain for save compatibility. New pickups
@@ -273,11 +326,11 @@ class DTMWeaponStats : Inventory
     int CritChance;
     String WeaponLabel;
     Class<Weapon> WeaponType;
-    bool HasWeaponRoll[7];
-    int WeaponRarity[7];
-    int WeaponDamageBonus[7];
-    int WeaponCritChance[7];
-    int WeaponLevel[7];
+    bool HasWeaponRoll[8];
+    int WeaponRarity[8];
+    int WeaponDamageBonus[8];
+    int WeaponCritChance[8];
+    int WeaponLevel[8];
 
     Default
     {
@@ -295,6 +348,7 @@ class DTMWeaponStats : Inventory
         if (type == 'PlasmaRifle') return 4;
         if (type == 'BFG9000') return 5;
         if (type == 'DTMTwinPlasmaRifle') return 6;
+        if (type == 'DTMRiotShotgun') return 7;
         return -1;
     }
 
@@ -439,6 +493,12 @@ class DTMWeaponDrop : Inventory
             WeaponLabel = "PLASMA RIFLE";
             SetStateLabel("Plasma");
         }
+        else if (Rarity >= 1 && roll >= 64 && roll < 72)
+        {
+            WeaponType = 'DTMRiotShotgun';
+            WeaponLabel = "RIOT SHOTGUN";
+            SetStateLabel("Shotgun");
+        }
         else if (Rarity >= 1 && roll >= 54)
         {
             WeaponType = 'RocketLauncher';
@@ -478,6 +538,20 @@ class DTMWeaponDrop : Inventory
         if (Rarity >= 2)
             A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
                 Color(65, 255, 105), 68, 68, DynamicLight.LF_ATTENUATE);
+    }
+
+    void InitRiotShotgun(int quality, int dropLevel)
+    {
+        Rarity = clamp(quality, 0, 4);
+        ItemLevel = max(1, dropLevel);
+        DamageBonus = Rarity * 14 + (ItemLevel - 1) * 2 +
+            Random(4, 12 + Rarity * 7);
+        CritChance = Rarity * 3 + Random(0, 2 + Rarity * 2);
+        WeaponType = 'DTMRiotShotgun';
+        WeaponLabel = "RIOT SHOTGUN";
+        SetStateLabel("Shotgun");
+        A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
+            Color(255, 110, 35), 58, 58, DynamicLight.LF_ATTENUATE);
     }
 
     void InitDrop(int quality, bool bossDrop, int dropLevel = 1)
@@ -577,6 +651,23 @@ class DTMTwinPlasmaTestDrop : DTMWeaponDrop
             if (progress) testLevel = max(testLevel, progress.PlayerLevel);
         }
         InitTwinPlasma(2, testLevel);
+    }
+}
+
+class DTMRiotShotgunTestDrop : DTMWeaponDrop
+{
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        int testLevel = 1;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (!PlayerInGame[i] || !players[i].mo) continue;
+            DTMPlayerProgress progress = DTMPlayerProgress(
+                players[i].mo.FindInventory('DTMPlayerProgress'));
+            if (progress) testLevel = max(testLevel, progress.PlayerLevel);
+        }
+        InitRiotShotgun(1, testLevel);
     }
 }
 
