@@ -109,7 +109,24 @@ class DTMPlayerProgress : Inventory
 
     clearscope int AmmoPercent()
     {
-        return max(0, PlayerLevel - 1) * 3;
+        return max(0, PlayerLevel - 1) * 5;
+    }
+
+    void RestoreAmmoType(Actor pawn, Class<Ammo> ammoType)
+    {
+        Ammo ammo = Ammo(pawn.FindInventory(ammoType));
+        if (!ammo) return;
+        ammo.Amount = min(ammo.MaxAmount,
+            ammo.Amount + max(1, ammo.MaxAmount / 50));
+    }
+
+    void RestoreKillAmmo()
+    {
+        if (!Owner) return;
+        RestoreAmmoType(Owner, 'Clip');
+        RestoreAmmoType(Owner, 'Shell');
+        RestoreAmmoType(Owner, 'RocketAmmo');
+        RestoreAmmoType(Owner, 'Cell');
     }
 
     void SetAmmoCapacity(Actor pawn, Class<Ammo> ammoType)
@@ -160,6 +177,7 @@ class DTMPlayerProgress : Inventory
         Initialize();
         Experience += max(0, amount);
         LifetimeKills++;
+        RestoreKillAmmo();
         bool levelled = false;
         while (Experience >= ExperienceToNext)
         {
@@ -196,6 +214,55 @@ class DTMPlayerProgress : Inventory
     }
 }
 
+// First experimental weapon variant. It trades ammunition efficiency for a
+// wider, more forceful stream: two weaker green bolts for two cells.
+class DTMTwinPlasmaBolt : ArachnotronPlasma
+{
+    Default
+    {
+        Damage 3;
+        SeeSound "weapons/plasmaf";
+        DeathSound "baby/shotx";
+        Obituary "$OB_MPPLASMARIFLE";
+    }
+}
+
+class DTMTwinPlasmaRifle : PlasmaRifle
+{
+    Default
+    {
+        Weapon.SelectionOrder 101;
+        Weapon.AmmoUse 2;
+        Weapon.AmmoGive 40;
+        Weapon.AmmoType "Cell";
+        Inventory.PickupMessage "Twin green plasma rifle acquired.";
+        Tag "TWIN PLASMA RIFLE";
+    }
+
+    action void A_FireTwinGreenPlasma()
+    {
+        if (player == null) return;
+        Weapon weap = player.ReadyWeapon;
+        if (weap != null && invoker == weap && stateinfo != null &&
+            stateinfo.mStateType == STATE_Psprite)
+        {
+            if (!weap.DepleteAmmo(weap.bAltFire, true)) return;
+            State flash = weap.FindState('Flash');
+            if (flash != null) player.SetSafeFlash(weap, flash, 0);
+        }
+        SpawnPlayerMissile('DTMTwinPlasmaBolt', angle - 2.0);
+        SpawnPlayerMissile('DTMTwinPlasmaBolt', angle + 2.0);
+    }
+
+    States
+    {
+    Fire:
+        PLSG A 3 A_FireTwinGreenPlasma;
+        PLSG B 20 A_ReFire;
+        Goto Ready;
+    }
+}
+
 class DTMWeaponStats : Inventory
 {
     // Legacy single-roll fields remain for save compatibility. New pickups
@@ -206,11 +273,11 @@ class DTMWeaponStats : Inventory
     int CritChance;
     String WeaponLabel;
     Class<Weapon> WeaponType;
-    bool HasWeaponRoll[6];
-    int WeaponRarity[6];
-    int WeaponDamageBonus[6];
-    int WeaponCritChance[6];
-    int WeaponLevel[6];
+    bool HasWeaponRoll[7];
+    int WeaponRarity[7];
+    int WeaponDamageBonus[7];
+    int WeaponCritChance[7];
+    int WeaponLevel[7];
 
     Default
     {
@@ -227,6 +294,7 @@ class DTMWeaponStats : Inventory
         if (type == 'RocketLauncher') return 3;
         if (type == 'PlasmaRifle') return 4;
         if (type == 'BFG9000') return 5;
+        if (type == 'DTMTwinPlasmaRifle') return 6;
         return -1;
     }
 
@@ -353,11 +421,17 @@ class DTMWeaponDrop : Inventory
     void SelectWeapon(bool bossDrop)
     {
         int roll = Random(0, 99);
-        if (bossDrop && Rarity >= 3 && roll >= 88)
+        if (bossDrop && Rarity >= 3 && roll >= 97)
         {
             WeaponType = 'BFG9000';
             WeaponLabel = "BFG 9000";
             SetStateLabel("BFG");
+        }
+        else if (Rarity >= 2 && roll >= 89)
+        {
+            WeaponType = 'DTMTwinPlasmaRifle';
+            WeaponLabel = "TWIN PLASMA RIFLE";
+            SetStateLabel("Plasma");
         }
         else if (Rarity >= 2 && roll >= 72)
         {
@@ -389,6 +463,21 @@ class DTMWeaponDrop : Inventory
             WeaponLabel = "SHOTGUN";
             SetStateLabel("Shotgun");
         }
+    }
+
+    void InitTwinPlasma(int quality, int dropLevel)
+    {
+        Rarity = clamp(quality, 0, 4);
+        ItemLevel = max(1, dropLevel);
+        DamageBonus = Rarity * 14 + (ItemLevel - 1) * 2 +
+            Random(4, 12 + Rarity * 7);
+        CritChance = Rarity * 3 + Random(0, 2 + Rarity * 2);
+        WeaponType = 'DTMTwinPlasmaRifle';
+        WeaponLabel = "TWIN PLASMA RIFLE";
+        SetStateLabel("Plasma");
+        if (Rarity >= 2)
+            A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
+                Color(65, 255, 105), 68, 68, DynamicLight.LF_ATTENUATE);
     }
 
     void InitDrop(int quality, bool bossDrop, int dropLevel = 1)
@@ -471,6 +560,23 @@ class DTMWeaponDrop : Inventory
     BFG:
         BFUG A -1 Bright;
         Stop;
+    }
+}
+
+class DTMTwinPlasmaTestDrop : DTMWeaponDrop
+{
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        int testLevel = 1;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (!PlayerInGame[i] || !players[i].mo) continue;
+            DTMPlayerProgress progress = DTMPlayerProgress(
+                players[i].mo.FindInventory('DTMPlayerProgress'));
+            if (progress) testLevel = max(testLevel, progress.PlayerLevel);
+        }
+        InitTwinPlasma(2, testLevel);
     }
 }
 
@@ -851,9 +957,13 @@ class DTMVariantHandler : StaticEventHandler
 
         variant.IsPromotedBoss = false;
         int playerLevel = CurrentPlayerLevel();
-        variant.MonsterLevel = clamp(playerLevel + Random(-4, 4), 1,
-            playerLevel + 5);
         variant.Rarity = RollRarity();
+        // Epic and higher monsters may reach three levels farther above the
+        // normal band, making their rarity visible in more than color alone.
+        int upperLevelOffset = variant.Rarity >= 2 ? 7 : 4;
+        variant.MonsterLevel = clamp(
+            playerLevel + Random(-4, upperLevelOffset), 1,
+            playerLevel + upperLevelOffset);
         int affixCount = variant.Rarity == 1 ? 1
             : variant.Rarity == 2 ? 2
             : variant.Rarity == 3 ? 2

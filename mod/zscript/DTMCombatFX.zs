@@ -206,6 +206,14 @@ class DTMProjectileTrailEmitter : Actor
                 0, 0, 0, 0, 0, 0,
                 0.78, 0.11, -0.22);
         }
+        else if (TrailType == 'GreenPlasma')
+        {
+            A_SpawnParticle(Color(65, 255, 105),
+                SPF_FULLBRIGHT | SPF_FACECAMERA,
+                7, 3.6, 0, offset.x, offset.y, offset.z,
+                0, 0, 0, 0, 0, 0,
+                0.78, 0.11, -0.22);
+        }
         else if (TrailType == 'BFG')
         {
             A_SpawnParticle(Color(75, 255, 105), SPF_FULLBRIGHT | SPF_FACECAMERA,
@@ -386,6 +394,15 @@ class DTMCombatFXHandler : StaticEventHandler
             DTMProjectileTrailEmitter plasmaTrail = DTMProjectileTrailEmitter(
                 Actor.Spawn('DTMProjectileTrailEmitter', missile.Pos, ALLOW_REPLACE));
             if (plasmaTrail) plasmaTrail.InitTrail(missile, 'Plasma');
+        }
+        else if (missileType == 'DTMTwinPlasmaBolt')
+        {
+            missile.A_AttachLight('DTMProjectileLight', DynamicLight.PointLight,
+                Color(65, 255, 105), 82, 82, DynamicLight.LF_ATTENUATE);
+            DTMProjectileTrailEmitter greenPlasmaTrail = DTMProjectileTrailEmitter(
+                Actor.Spawn('DTMProjectileTrailEmitter', missile.Pos, ALLOW_REPLACE));
+            if (greenPlasmaTrail)
+                greenPlasmaTrail.InitTrail(missile, 'GreenPlasma');
         }
         else if (missileType == 'BFGBall')
         {

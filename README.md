@@ -55,8 +55,11 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Camera recenter with `Z`
 - Automatic XP and player levelling; every level raises maximum health, damage, armor capacity, and ammo capacity
 - Character progression sheet with `L`, shown through a compact black-edged HUD tab
-- Levelled monsters roll within roughly four levels of the player in either direction (a level-1 marine can encounter level-5 monsters), with rarity strength layered on top
+- Levelled monsters normally roll within roughly four levels of the player (a level-1 marine can encounter level-5 monsters); Epic and higher variants can roll three additional levels above that range
 - Weapon drops inherit the defeated monster's level, so otherwise similar high-level weapons roll more damage than low-level versions
+- Levels grant +5% ammo capacity each, and every monster kill restores a small amount of each ammunition type already carried
+- Epic-or-better loot can roll a twin green plasma rifle: it fires two weaker Arachnotron-style bolts for two cells and shares slot `6` with the normal plasma rifle
+- Testing cheat: enter `dtm_spawn_dual_plasma` in the console to summon an Epic twin-plasma drop at the player's current level
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted
 - Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
 - Epic, Mythic, and Godly monsters carry color-coded world glows
