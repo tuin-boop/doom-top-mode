@@ -3,6 +3,7 @@
 class DTMMonsterVariant : Inventory
 {
     int Rarity;
+    int MonsterLevel;
     int MaximumHealth;
     bool AffixFast;
     bool AffixTough;
@@ -47,9 +48,144 @@ class DTMMonsterVariant : Inventory
     {
         if (passive || damage <= 0) return;
 
-        double multiplier = 1.0 + Rarity * 0.10;
+        double multiplier = (1.0 + Rarity * 0.10) *
+            (1.0 + max(0, MonsterLevel - 1) * 0.06);
         if (AffixBrutal) multiplier *= 1.28;
         newDamage = max(1, int(damage * multiplier + 0.5));
+    }
+
+    States
+    {
+    Spawn:
+        TNT1 A -1;
+        Stop;
+    }
+}
+
+// Persistent, automatic player progression.  It owns the level-derived
+// damage multiplier and refreshes the engine's health/armor/ammo limits.
+class DTMPlayerProgress : Inventory
+{
+    int PlayerLevel;
+    int Experience;
+    int ExperienceToNext;
+    int LifetimeKills;
+    int AppliedHealthBonus;
+
+    Default
+    {
+        Inventory.MaxAmount 1;
+        +INVENTORY.UNDROPPABLE
+        +INVENTORY.UNCLEARABLE
+    }
+
+    void Initialize()
+    {
+        if (PlayerLevel > 0) return;
+        PlayerLevel = 1;
+        Experience = 0;
+        ExperienceToNext = XPForLevel(PlayerLevel);
+    }
+
+    clearscope int XPForLevel(int levelNumber)
+    {
+        return 100 + max(0, levelNumber - 1) * 65;
+    }
+
+    clearscope int MaxHealthForLevel()
+    {
+        return 100 + max(0, PlayerLevel - 1) * 6;
+    }
+
+    clearscope int MaxArmorForLevel()
+    {
+        return 200 + max(0, PlayerLevel - 1) * 8;
+    }
+
+    clearscope int DamagePercent()
+    {
+        return max(0, PlayerLevel - 1) * 25 / 10;
+    }
+
+    clearscope int AmmoPercent()
+    {
+        return max(0, PlayerLevel - 1) * 3;
+    }
+
+    void SetAmmoCapacity(Actor pawn, Class<Ammo> ammoType)
+    {
+        Ammo ammo = Ammo(pawn.FindInventory(ammoType));
+        if (!ammo) return;
+        int baseMaximum = GetDefaultByType(ammoType).MaxAmount;
+        int normalCap = max(1, int(baseMaximum *
+            (1.0 + AmmoPercent() / 100.0) + 0.5));
+        ammo.BackpackMaxAmount = normalCap * 2;
+        ammo.MaxAmount = pawn.FindInventory('BackpackItem', true)
+            ? ammo.BackpackMaxAmount : normalCap;
+    }
+
+    void ApplyBenefits(Actor pawn, bool refillGrowth = false)
+    {
+        if (!pawn || !pawn.player) return;
+        Initialize();
+        PlayerPawn playerPawn = PlayerPawn(pawn);
+        int wantedHealthBonus = max(0, PlayerLevel - 1) * 6;
+        int gainedHealth = max(0, wantedHealthBonus - AppliedHealthBonus);
+        if (wantedHealthBonus > AppliedHealthBonus)
+        {
+            playerPawn.BonusHealth += wantedHealthBonus - AppliedHealthBonus;
+            AppliedHealthBonus = wantedHealthBonus;
+        }
+        if (refillGrowth && gainedHealth > 0)
+            pawn.health = min(pawn.GetMaxHealth(true), pawn.health + gainedHealth);
+
+        BasicArmor armor = BasicArmor(pawn.FindInventory('BasicArmor', true));
+        if (armor)
+        {
+            int armorCap = MaxArmorForLevel();
+            armor.MaxAllowedAmount = armorCap;
+            armor.MaxAmount = max(armor.MaxAmount, armorCap);
+            if (refillGrowth)
+                armor.Amount = min(armorCap, armor.Amount + 8);
+        }
+
+        SetAmmoCapacity(pawn, 'Clip');
+        SetAmmoCapacity(pawn, 'Shell');
+        SetAmmoCapacity(pawn, 'RocketAmmo');
+        SetAmmoCapacity(pawn, 'Cell');
+    }
+
+    void AddExperience(int amount)
+    {
+        Initialize();
+        Experience += max(0, amount);
+        LifetimeKills++;
+        bool levelled = false;
+        while (Experience >= ExperienceToNext)
+        {
+            Experience -= ExperienceToNext;
+            PlayerLevel++;
+            ExperienceToNext = XPForLevel(PlayerLevel);
+            levelled = true;
+        }
+        if (levelled && Owner)
+        {
+            ApplyBenefits(Owner, true);
+            Console.MidPrint(null,
+                String.Format("LEVEL %d  //  POWER INCREASED", PlayerLevel), true);
+            Owner.A_Log(String.Format(
+                "LEVEL %d: %d HP, +%d%% damage, %d armor, +%d%% ammo",
+                PlayerLevel, MaxHealthForLevel(), DamagePercent(),
+                MaxArmorForLevel(), AmmoPercent()), true);
+        }
+    }
+
+    override void ModifyDamage(int damage, Name damageType, out int newDamage,
+        bool passive, Actor inflictor, Actor source, int flags, double angle)
+    {
+        if (passive || damage <= 0) return;
+        newDamage = max(1, int(damage *
+            (1.0 + DamagePercent() / 100.0) + 0.5));
     }
 
     States
@@ -74,6 +210,7 @@ class DTMWeaponStats : Inventory
     int WeaponRarity[6];
     int WeaponDamageBonus[6];
     int WeaponCritChance[6];
+    int WeaponLevel[6];
 
     Default
     {
@@ -93,7 +230,8 @@ class DTMWeaponStats : Inventory
         return -1;
     }
 
-    void SetWeaponRoll(Class<Weapon> type, int rarity, int damage, int critical)
+    void SetWeaponRoll(Class<Weapon> type, int rarity, int damage, int critical,
+        int itemLevel = 1)
     {
         int index = IndexFor(type);
         if (index >= 0)
@@ -102,11 +240,19 @@ class DTMWeaponStats : Inventory
             WeaponRarity[index] = rarity;
             WeaponDamageBonus[index] = damage;
             WeaponCritChance[index] = critical;
+            WeaponLevel[index] = max(1, itemLevel);
         }
         Rarity = rarity;
         DamageBonus = damage;
         CritChance = critical;
         WeaponType = type;
+    }
+
+    clearscope int LevelFor(Class<Weapon> type)
+    {
+        int index = IndexFor(type);
+        if (index >= 0 && HasWeaponRoll[index]) return max(1, WeaponLevel[index]);
+        return 1;
     }
 
     clearscope bool HasStatsFor(Class<Weapon> type)
@@ -175,6 +321,7 @@ class DTMWeaponStats : Inventory
 class DTMWeaponDrop : Inventory
 {
     int Rarity;
+    int ItemLevel;
     int DamageBonus;
     int CritChance;
     String WeaponLabel;
@@ -244,10 +391,12 @@ class DTMWeaponDrop : Inventory
         }
     }
 
-    void InitDrop(int quality, bool bossDrop)
+    void InitDrop(int quality, bool bossDrop, int dropLevel = 1)
     {
         Rarity = clamp(quality, 0, 4);
-        DamageBonus = Rarity * 14 + Random(4, 12 + Rarity * 7);
+        ItemLevel = max(1, dropLevel);
+        DamageBonus = Rarity * 14 + (ItemLevel - 1) * 2 +
+            Random(4, 12 + Rarity * 7);
         CritChance = Rarity * 3 + Random(0, 2 + Rarity * 2);
         SelectWeapon(bossDrop);
 
@@ -278,12 +427,13 @@ class DTMWeaponDrop : Inventory
         if (stats)
         {
             stats.WeaponLabel = WeaponLabel;
-            stats.SetWeaponRoll(WeaponType, Rarity, DamageBonus, CritChance);
+            stats.SetWeaponRoll(WeaponType, Rarity, DamageBonus, CritChance,
+                ItemLevel);
         }
 
         toucher.player.PendingWeapon = newWeapon;
-        toucher.A_Log(String.Format("EQUIPPED %s %s: +%d%% damage, %d%% critical chance",
-            RarityName(), WeaponLabel, DamageBonus, CritChance), true);
+        toucher.A_Log(String.Format("EQUIPPED LEVEL %d %s %s: +%d%% damage, %d%% critical chance",
+            ItemLevel, RarityName(), WeaponLabel, DamageBonus, CritChance), true);
         GoAwayAndDie();
         return true;
     }
@@ -408,6 +558,41 @@ class DTMVariantHandler : StaticEventHandler
     {
         if (!monster) return null;
         return DTMMonsterVariant(monster.FindInventory('DTMMonsterVariant'));
+    }
+
+    DTMPlayerProgress ProgressFor(Actor pawn)
+    {
+        if (!pawn) return null;
+        return DTMPlayerProgress(pawn.FindInventory('DTMPlayerProgress'));
+    }
+
+    DTMPlayerProgress EnsureProgress(Actor pawn)
+    {
+        if (!pawn || !pawn.player) return null;
+        DTMPlayerProgress progress = ProgressFor(pawn);
+        if (!progress)
+        {
+            pawn.GiveInventory('DTMPlayerProgress', 1);
+            progress = ProgressFor(pawn);
+        }
+        if (progress)
+        {
+            progress.Initialize();
+            progress.ApplyBenefits(pawn);
+        }
+        return progress;
+    }
+
+    int CurrentPlayerLevel()
+    {
+        int highestLevel = 1;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (!PlayerInGame[i] || !players[i].mo) continue;
+            DTMPlayerProgress progress = EnsureProgress(players[i].mo);
+            if (progress) highestLevel = max(highestLevel, progress.PlayerLevel);
+        }
+        return highestLevel;
     }
 
     int RollRarity()
@@ -665,6 +850,9 @@ class DTMVariantHandler : StaticEventHandler
         if (!variant) return;
 
         variant.IsPromotedBoss = false;
+        int playerLevel = CurrentPlayerLevel();
+        variant.MonsterLevel = clamp(playerLevel + Random(-4, 4), 1,
+            playerLevel + 5);
         variant.Rarity = RollRarity();
         int affixCount = variant.Rarity == 1 ? 1
             : variant.Rarity == 2 ? 2
@@ -681,6 +869,7 @@ class DTMVariantHandler : StaticEventHandler
             : variant.Rarity == 2 ? 1.50
             : variant.Rarity == 3 ? 1.90
             : variant.Rarity >= 4 ? 2.50 : 1.0;
+        healthMultiplier *= 1.0 + max(0, variant.MonsterLevel - 1) * 0.10;
         if (variant.AffixTough) healthMultiplier *= 1.35;
         monster.health = max(1, int(monster.health * healthMultiplier + 0.5));
         variant.MaximumHealth = monster.health;
@@ -701,6 +890,8 @@ class DTMVariantHandler : StaticEventHandler
 
     override void WorldLoaded(WorldEvent e)
     {
+        for (int i = 0; i < MAXPLAYERS; i++)
+            if (PlayerInGame[i] && players[i].mo) EnsureProgress(players[i].mo);
         AssignExistingMonsters();
         if (!e.IsSaveGame)
         {
@@ -731,7 +922,24 @@ class DTMVariantHandler : StaticEventHandler
 
         DTMWeaponDrop drop = DTMWeaponDrop(Actor.Spawn('DTMWeaponDrop',
             (monster.pos.x, monster.pos.y, monster.floorz + 12), ALLOW_REPLACE));
-        if (drop) drop.InitDrop(quality, bossDrop);
+        if (drop) drop.InitDrop(quality, bossDrop,
+            variant ? variant.MonsterLevel : CurrentPlayerLevel());
+    }
+
+    void AwardMonsterExperience(Actor monster, DTMMonsterVariant variant)
+    {
+        int monsterLevel = variant ? max(1, variant.MonsterLevel) : 1;
+        int rarity = variant ? variant.Rarity : 0;
+        int reward = max(5, monster.SpawnHealth() / 10) + monsterLevel * 5 +
+            rarity * 12;
+        if (variant && variant.IsPromotedBoss) reward *= 5;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (!PlayerInGame[i] || !players[i].mo || players[i].mo.health <= 0)
+                continue;
+            DTMPlayerProgress progress = EnsureProgress(players[i].mo);
+            if (progress) progress.AddExperience(reward);
+        }
     }
 
     override void WorldThingDied(WorldEvent e)
@@ -746,6 +954,7 @@ class DTMVariantHandler : StaticEventHandler
                 e.Thing.pos + (0, 0, e.Thing.height * 0.35), ALLOW_REPLACE);
             if (blast) blast.target = e.Thing;
         }
+        AwardMonsterExperience(e.Thing, variant);
         SpawnWeaponDrop(e.Thing, variant);
     }
 
@@ -843,7 +1052,7 @@ class DTMVariantHandler : StaticEventHandler
         double bossHealthMultiplier = (boss is 'Cyberdemon' ||
             boss is 'SpiderMastermind') ? 2.5 : 5.0;
         boss.health = max(1,
-            int(boss.SpawnHealth() * bossHealthMultiplier + 0.5));
+            int(max(boss.health, variant.MaximumHealth) * bossHealthMultiplier + 0.5));
         variant.MaximumHealth = boss.health;
         boss.Speed *= 1.18;
         variant.DisplayName = BuildDisplayName(boss, variant, true);
@@ -896,6 +1105,10 @@ class DTMVariantHandler : StaticEventHandler
 
     override void WorldTick()
     {
+        if ((level.maptime % 35) == 0)
+            for (int i = 0; i < MAXPLAYERS; i++)
+                if (PlayerInGame[i] && players[i].mo)
+                    EnsureProgress(players[i].mo);
         UpdatePlayerLootPrompts();
 
         if (!BossPromoted && InitialMonsterCount >= 2 &&

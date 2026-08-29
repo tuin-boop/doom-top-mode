@@ -34,5 +34,9 @@ addmenukey "Toggle automatic camera" "dtm_toggle_auto_camera"
 alias "dtm_toggle_auto_camera" "netevent DTM_TOGGLE_AUTO_CAMERA"
 defaultbind B "dtm_toggle_auto_camera"
 
+addmenukey "Character progression" "dtm_character"
+alias "dtm_character" "netevent DTM_CHARACTER"
+defaultbind L "dtm_character"
+
 addmenukey "Toggle experimental wall cutout" "dtm_toggle_wall_cutout"
 defaultbind N "dtm_toggle_wall_cutout"

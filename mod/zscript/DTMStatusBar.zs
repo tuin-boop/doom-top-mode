@@ -33,8 +33,13 @@ class DTMStatusBar : BaseStatusBar
 
         int health = max(0, CPlayer.health);
         int armor = GetArmorAmount();
-        double healthRatio = clamp(health / 200.0, 0.0, 1.0);
-        double armorRatio = clamp(armor / 200.0, 0.0, 1.0);
+        DTMPlayerProgress playerProgress = DTMPlayerProgress(
+            CPlayer.mo.FindInventory('DTMPlayerProgress'));
+        int healthMaximum = max(1, CPlayer.mo.GetMaxHealth(true));
+        int armorMaximum = playerProgress
+            ? playerProgress.MaxArmorForLevel() : 200;
+        double healthRatio = clamp(health / double(healthMaximum), 0.0, 1.0);
+        double armorRatio = clamp(armor / double(armorMaximum), 0.0, 1.0);
 
         DrawString(LabelFont, "VITALS", (-403, -143),
             DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
@@ -97,7 +102,9 @@ class DTMStatusBar : BaseStatusBar
                 : readyRarity == 2 ? Font.CR_PURPLE
                 : readyRarity == 3 ? Font.CR_ORANGE
                 : readyRarity >= 4 ? Font.CR_CYAN : Font.CR_GRAY;
-            String weaponQuality = weaponStats.RarityNameFor(readyWeaponType);
+            String weaponQuality = String.Format("%s  LVL %d",
+                weaponStats.RarityNameFor(readyWeaponType),
+                weaponStats.LevelFor(readyWeaponType));
             // Keep quality and rolled stats on separate rows.  The old single
             // tiny line was difficult to read and crowded the panel edge.
             Fill(readyRarity == 1 ? Color(255, 75, 165, 255)
@@ -151,8 +158,8 @@ class DTMStatusBar : BaseStatusBar
                 (-248, -376), DI_SCREEN_CENTER_BOTTOM,
                 Font.CR_CYAN, 1.0, scale: (1.25, 1.25));
             DrawString(LabelFont,
-                String.Format("%s  %s", nearbyDrop.RarityName(),
-                    nearbyDrop.WeaponLabel),
+                String.Format("LVL %d  %s  %s", nearbyDrop.ItemLevel,
+                    nearbyDrop.RarityName(), nearbyDrop.WeaponLabel),
                 (-248, -348), DI_SCREEN_CENTER_BOTTOM,
                 dropColor, 1.0, scale: (1.35, 1.35));
             DrawString(LabelFont,
@@ -170,14 +177,15 @@ class DTMStatusBar : BaseStatusBar
             {
                 int ownedDamage = ownedStats.DamageFor(nearbyDrop.WeaponType);
                 int ownedCritical = ownedStats.CriticalFor(nearbyDrop.WeaponType);
+                int ownedLevel = ownedStats.LevelFor(nearbyDrop.WeaponType);
                 int damageDelta = nearbyDrop.DamageBonus - ownedDamage;
                 int critDelta = nearbyDrop.CritChance - ownedCritical;
                 String verdict = damageDelta >= 0 && critDelta >= 0
                     ? "UPGRADE" : damageDelta <= 0 && critDelta <= 0
                     ? "DOWNGRADE" : "SIDEGRADE";
                 ownedLine = String.Format(
-                    "%s  //  OWNED DMG +%d%% (DELTA %d)  CRIT %d%% (DELTA %d)",
-                    verdict,
+                    "%s  //  OWNED LVL %d  DMG +%d%% (DELTA %d)  CRIT %d%% (DELTA %d)",
+                    verdict, ownedLevel,
                     ownedDamage, damageDelta,
                     ownedCritical, critDelta);
                 ownedColor = damageDelta >= 0 && critDelta >= 0
@@ -279,8 +287,10 @@ class DTMStatusBar : BaseStatusBar
             if (targetVariant)
             {
                 String qualityLine = isBoss
-                    ? String.Format("BOSS  //  %s", targetQuality)
-                    : targetQuality;
+                    ? String.Format("LVL %d  //  BOSS  //  %s",
+                        targetVariant.MonsterLevel, targetQuality)
+                    : String.Format("LVL %d  //  %s",
+                        targetVariant.MonsterLevel, targetQuality);
                 DrawString(LabelFont, qualityLine,
                     (-248, 88), DI_SCREEN_CENTER_TOP,
                     rarityColor, 1.0, scale: (1.2, 1.2));
@@ -313,6 +323,73 @@ class DTMStatusBar : BaseStatusBar
                 : targetRatio > 0.25 ? Color(255, 255, 145, 25)
                 : Color(255, 245, 35, 35),
                 -248, 135, 496 * targetRatio, 13, DI_SCREEN_CENTER_TOP);
+        }
+
+        // Small always-visible, black-edged tab plus a full character sheet.
+        Fill(Color(235, 0, 0, 0), -82, -58, 164, 30,
+            DI_SCREEN_CENTER_BOTTOM);
+        Fill(Color(235, 8, 25, 31), -78, -55, 156, 23,
+            DI_SCREEN_CENTER_BOTTOM);
+        DrawString(LabelFont, "L  CHARACTER", (0, -51),
+            DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+            Font.CR_CYAN, 0.95, scale: (0.95, 0.95));
+
+        if (tacticalPawn && tacticalPawn.ShowCharacterPanel && playerProgress)
+        {
+            double xpRatio = clamp(playerProgress.Experience /
+                double(max(1, playerProgress.ExperienceToNext)), 0.0, 1.0);
+            Fill(Color(245, 0, 0, 0), -326, -244, 660, 500,
+                DI_SCREEN_CENTER);
+            Fill(Color(242, 5, 13, 18), -316, -234, 640, 476,
+                DI_SCREEN_CENTER);
+            Fill(Color(255, 0, 215, 255), -316, -234, 640, 5,
+                DI_SCREEN_CENTER);
+            Fill(Color(190, 0, 100, 125), -316, 237, 640, 5,
+                DI_SCREEN_CENTER);
+            DrawString(LabelFont, "MARINE PROGRESSION", (0, -205),
+                DI_SCREEN_CENTER | DI_TEXT_ALIGN_CENTER,
+                Font.CR_CYAN, 1.0, scale: (1.65, 1.65));
+            DrawString(NumberFont,
+                String.Format("LEVEL %d", playerProgress.PlayerLevel),
+                (0, -155), DI_SCREEN_CENTER | DI_TEXT_ALIGN_CENTER,
+                Font.CR_GOLD, 1.0, scale: (1.65, 1.65));
+            DrawString(LabelFont,
+                String.Format("XP  %d / %d", playerProgress.Experience,
+                    playerProgress.ExperienceToNext),
+                (0, -105), DI_SCREEN_CENTER | DI_TEXT_ALIGN_CENTER,
+                Font.CR_UNTRANSLATED, 1.0, scale: (1.2, 1.2));
+            Fill(Color(255, 18, 28, 32), -250, -75, 500, 18,
+                DI_SCREEN_CENTER);
+            Fill(Color(255, 30, 215, 115), -250, -75,
+                500 * xpRatio, 18, DI_SCREEN_CENTER);
+            DrawString(LabelFont,
+                String.Format("MAX HEALTH                 %d",
+                    playerProgress.MaxHealthForLevel()),
+                (-225, -25), DI_SCREEN_CENTER, Font.CR_GREEN, 1.0,
+                scale: (1.25, 1.25));
+            DrawString(LabelFont,
+                String.Format("DAMAGE BONUS              +%d%%",
+                    playerProgress.DamagePercent()),
+                (-225, 20), DI_SCREEN_CENTER, Font.CR_ORANGE, 1.0,
+                scale: (1.25, 1.25));
+            DrawString(LabelFont,
+                String.Format("MAX ARMOR                  %d",
+                    playerProgress.MaxArmorForLevel()),
+                (-225, 65), DI_SCREEN_CENTER, Font.CR_LIGHTBLUE, 1.0,
+                scale: (1.25, 1.25));
+            DrawString(LabelFont,
+                String.Format("AMMO CAPACITY             +%d%%",
+                    playerProgress.AmmoPercent()),
+                (-225, 110), DI_SCREEN_CENTER, Font.CR_GOLD, 1.0,
+                scale: (1.25, 1.25));
+            DrawString(LabelFont,
+                String.Format("MONSTERS DEFEATED           %d",
+                    playerProgress.LifetimeKills),
+                (-225, 155), DI_SCREEN_CENTER, Font.CR_GRAY, 1.0,
+                scale: (1.25, 1.25));
+            DrawString(LabelFont, "PRESS L TO CLOSE", (0, 207),
+                DI_SCREEN_CENTER | DI_TEXT_ALIGN_CENTER,
+                Font.CR_CYAN, 0.9, scale: (1.0, 1.0));
         }
     }
 }

@@ -53,11 +53,15 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Orthographic sky-dome suppression (the perspective dome otherwise becomes a giant curved texture)
 - Aim-assist toggle with `C`
 - Camera recenter with `Z`
+- Automatic XP and player levelling; every level raises maximum health, damage, armor capacity, and ammo capacity
+- Character progression sheet with `L`, shown through a compact black-edged HUD tab
+- Levelled monsters roll within roughly four levels of the player in either direction (a level-1 marine can encounter level-5 monsters), with rarity strength layered on top
+- Weapon drops inherit the defeated monster's level, so otherwise similar high-level weapons roll more damage than low-level versions
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted
 - Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
 - Epic, Mythic, and Godly monsters carry color-coded world glows
 - Some Mythic and Godly monsters gain relentless fast-chase behavior
-- Rolled weapon drops never auto-pick up: approach one to compare it with the owned version, then press Use to equip it without deleting other weapon types
+- Rolled weapon drops never auto-pick up: approach one to compare its level and stats with the owned version, then press `E` or Use to equip it without deleting other weapon types
 - Rolled rarity, damage and critical stats are retained separately for every collected weapon instead of being overwritten by the next drop
 - At 85% kills, one surviving monster is promoted in place into a red-lit boss of its original species and always drops weighted Rare-or-better loot
 - Canonical E1M8, E2M8, and E3M8 bosses receive the same boss treatment; bosses have 5x base health, except Cyberdemons and Spider Masterminds at 2.5x

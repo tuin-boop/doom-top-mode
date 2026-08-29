@@ -18,6 +18,7 @@ class DTMPlayer : DoomPlayer
     Actor StoredCamera;
     Actor AimTarget;
     Actor NearbyWeaponDrop;
+    bool ShowCharacterPanel;
     CVar AutoCameraSetting;
     int AppliedFlashlightRange;
     int AppliedFlashlightIntensity;
@@ -75,6 +76,7 @@ class DTMPlayer : DoomPlayer
         AutoCameraSetting = CVar.GetCVar("DTM_AutoCamera", player);
         AimTarget = null;
         NearbyWeaponDrop = null;
+        ShowCharacterPanel = false;
         AppliedFlashlightRange = -1;
         AppliedFlashlightIntensity = -1;
         AppliedFlashlightPitch = 999;

@@ -96,6 +96,8 @@ class DTMInputHandler : EventHandler
             if (e.Player == consoleplayer)
                 Console.Printf(flashlight.GetBool() ? "Flashlight: ON" : "Flashlight: OFF");
         }
+        else if (e.Name == "DTM_CHARACTER")
+            pawn.ShowCharacterPanel = !pawn.ShowCharacterPanel;
     }
 }
 
