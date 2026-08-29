@@ -62,11 +62,18 @@ class DTMMonsterVariant : Inventory
 
 class DTMWeaponStats : Inventory
 {
+    // Legacy single-roll fields remain for save compatibility. New pickups
+    // are stored per weapon so collecting another gun never erases an older
+    // gun's rolled quality.
     int Rarity;
     int DamageBonus;
     int CritChance;
     String WeaponLabel;
     Class<Weapon> WeaponType;
+    bool HasWeaponRoll[6];
+    int WeaponRarity[6];
+    int WeaponDamageBonus[6];
+    int WeaponCritChance[6];
 
     Default
     {
@@ -75,19 +82,74 @@ class DTMWeaponStats : Inventory
         +INVENTORY.UNCLEARABLE
     }
 
-    String RarityName()
+    clearscope int IndexFor(Class<Weapon> type)
     {
-        if (Rarity == 1) return "RARE";
-        if (Rarity == 2) return "EPIC";
-        if (Rarity == 3) return "MYTHIC";
-        if (Rarity >= 4) return "GODLY";
+        if (type == 'Shotgun') return 0;
+        if (type == 'Chaingun') return 1;
+        if (type == 'SuperShotgun') return 2;
+        if (type == 'RocketLauncher') return 3;
+        if (type == 'PlasmaRifle') return 4;
+        if (type == 'BFG9000') return 5;
+        return -1;
+    }
+
+    void SetWeaponRoll(Class<Weapon> type, int rarity, int damage, int critical)
+    {
+        int index = IndexFor(type);
+        if (index >= 0)
+        {
+            HasWeaponRoll[index] = true;
+            WeaponRarity[index] = rarity;
+            WeaponDamageBonus[index] = damage;
+            WeaponCritChance[index] = critical;
+        }
+        Rarity = rarity;
+        DamageBonus = damage;
+        CritChance = critical;
+        WeaponType = type;
+    }
+
+    clearscope bool HasStatsFor(Class<Weapon> type)
+    {
+        int index = IndexFor(type);
+        return (index >= 0 && HasWeaponRoll[index]) || WeaponType == type;
+    }
+
+    clearscope int RarityFor(Class<Weapon> type)
+    {
+        int index = IndexFor(type);
+        if (index >= 0 && HasWeaponRoll[index]) return WeaponRarity[index];
+        return WeaponType == type ? Rarity : 0;
+    }
+
+    clearscope int DamageFor(Class<Weapon> type)
+    {
+        int index = IndexFor(type);
+        if (index >= 0 && HasWeaponRoll[index]) return WeaponDamageBonus[index];
+        return WeaponType == type ? DamageBonus : 0;
+    }
+
+    clearscope int CriticalFor(Class<Weapon> type)
+    {
+        int index = IndexFor(type);
+        if (index >= 0 && HasWeaponRoll[index]) return WeaponCritChance[index];
+        return WeaponType == type ? CritChance : 0;
+    }
+
+    clearscope String RarityNameFor(Class<Weapon> type)
+    {
+        int rarity = RarityFor(type);
+        if (rarity == 1) return "RARE";
+        if (rarity == 2) return "EPIC";
+        if (rarity == 3) return "MYTHIC";
+        if (rarity >= 4) return "GODLY";
         return "COMMON";
     }
 
     bool AppliesToReadyWeapon()
     {
         return Owner && Owner.player && Owner.player.ReadyWeapon &&
-            Owner.player.ReadyWeapon.GetClass() == WeaponType;
+            HasStatsFor(Owner.player.ReadyWeapon.GetClass());
     }
 
     override void ModifyDamage(int damage, Name damageType, out int newDamage,
@@ -95,8 +157,11 @@ class DTMWeaponStats : Inventory
     {
         if (passive || damage <= 0 || !AppliesToReadyWeapon()) return;
 
-        newDamage = max(1, int(damage * (1.0 + DamageBonus / 100.0) + 0.5));
-        if (Random(1, 100) <= CritChance) newDamage *= 2;
+        Class<Weapon> readyType = Owner.player.ReadyWeapon.GetClass();
+        int rolledDamage = DamageFor(readyType);
+        int rolledCritical = CriticalFor(readyType);
+        newDamage = max(1, int(damage * (1.0 + rolledDamage / 100.0) + 0.5));
+        if (Random(1, 100) <= rolledCritical) newDamage *= 2;
     }
 
     States
@@ -209,11 +274,8 @@ class DTMWeaponDrop : Inventory
         DTMWeaponStats stats = DTMWeaponStats(toucher.FindInventory('DTMWeaponStats'));
         if (stats)
         {
-            stats.Rarity = Rarity;
-            stats.DamageBonus = DamageBonus;
-            stats.CritChance = CritChance;
             stats.WeaponLabel = WeaponLabel;
-            stats.WeaponType = WeaponType;
+            stats.SetWeaponRoll(WeaponType, Rarity, DamageBonus, CritChance);
         }
 
         toucher.player.PendingWeapon = newWeapon;
@@ -729,7 +791,10 @@ class DTMVariantHandler : StaticEventHandler
     {
         if (!pawn) return null;
         DTMWeaponDrop closest = null;
-        double closestDistance = 84.0;
+        // Show the comparison before the player is standing on the item. Use
+        // still requires this range, so walls and distant drops cannot be
+        // accepted accidentally.
+        double closestDistance = 144.0;
         ThinkerIterator iterator = ThinkerIterator.Create('DTMWeaponDrop');
         DTMWeaponDrop drop;
         while (drop = DTMWeaponDrop(iterator.Next()))

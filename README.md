@@ -17,6 +17,7 @@ extract the whole folder, and double-click **`DoomTopModeLauncher.exe`**.
 The launcher:
 
 - presents a visible launch window with the detected IWAD and Voxel Doom state;
+- prevents duplicate Top Doom sessions when the launcher is clicked repeatedly;
 - uses the bundled customized UZDoom renderer and `DoomTopMode.pk3`;
 - searches common Steam, GOG and Doom environment-variable locations;
 - opens a file picker if it cannot find `DOOM2.WAD` or `DOOM.WAD`;
@@ -57,6 +58,7 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Epic, Mythic, and Godly monsters carry color-coded world glows
 - Some Mythic and Godly monsters gain relentless fast-chase behavior
 - Rolled weapon drops never auto-pick up: approach one to compare it with the owned version, then press Use to equip it without deleting other weapon types
+- Rolled rarity, damage and critical stats are retained separately for every collected weapon instead of being overwritten by the next drop
 - At 85% kills, one surviving monster is promoted in place into a red-lit boss of its original species and always drops weighted Rare-or-better loot
 - Canonical E1M8, E2M8, and E3M8 bosses receive the same boss treatment; bosses have 5x base health, except Cyberdemons and Spider Masterminds at 2.5x
 - Optional Cheello Voxel Doom II 2.4 pack, loaded as a separate add-on

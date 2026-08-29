@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 
 internal static class DoomTopModeLauncher
@@ -21,6 +22,22 @@ internal static class DoomTopModeLauncher
     private static int Main(string[] args)
     {
         Application.EnableVisualStyles();
+        bool ownsSession;
+        using (Mutex session = new Mutex(true, "Local\\TuinsTopDoomGame", out ownsSession))
+        {
+            if (!ownsSession)
+            {
+                FocusExistingGame();
+                MessageBox.Show("Tuin's Top Doom is already running.", Title,
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 0;
+            }
+            return Run(args);
+        }
+    }
+
+    private static int Run(string[] args)
+    {
         try
         {
             string root = AppDomain.CurrentDomain.BaseDirectory;
@@ -87,6 +104,9 @@ internal static class DoomTopModeLauncher
             {
                 using (LoadingForm loading = new LoadingForm(game, useVoxels))
                     loading.ShowDialog();
+                // Keep the named session guard alive until the game closes so
+                // another launcher click cannot create a second hidden copy.
+                if (!game.HasExited) game.WaitForExit();
             }
             return 0;
         }
@@ -268,6 +288,22 @@ internal static class DoomTopModeLauncher
         return 1;
     }
 
+    private static void FocusExistingGame()
+    {
+        foreach (Process process in Process.GetProcessesByName("uzdoom"))
+        {
+            try
+            {
+                process.Refresh();
+                if (process.MainWindowHandle == IntPtr.Zero) continue;
+                ShowWindow(process.MainWindowHandle, 9);
+                SetForegroundWindow(process.MainWindowHandle);
+                return;
+            }
+            catch { }
+        }
+    }
+
     private sealed class LauncherForm : Form
     {
         private readonly TextBox iwadBox;
@@ -366,7 +402,7 @@ internal static class DoomTopModeLauncher
     private sealed class LoadingForm : Form
     {
         private readonly Process game;
-        private readonly Timer timer;
+        private readonly System.Windows.Forms.Timer timer;
         private readonly Label status;
         private int ticks;
 
@@ -396,7 +432,7 @@ internal static class DoomTopModeLauncher
             Controls.Add(status);
             Controls.Add(progress);
 
-            timer = new Timer();
+            timer = new System.Windows.Forms.Timer();
             timer.Interval = 250;
             timer.Tick += CheckGame;
             timer.Start();

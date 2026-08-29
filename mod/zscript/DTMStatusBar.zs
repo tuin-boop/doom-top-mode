@@ -85,23 +85,25 @@ class DTMStatusBar : BaseStatusBar
 
         DTMWeaponStats weaponStats = DTMWeaponStats(
             CPlayer.mo.FindInventory('DTMWeaponStats'));
+        Class<Weapon> readyWeaponType = CPlayer.ReadyWeapon
+            ? CPlayer.ReadyWeapon.GetClass() : null;
         if (weaponStats && CPlayer.ReadyWeapon &&
-            CPlayer.ReadyWeapon.GetClass() == weaponStats.WeaponType)
+            weaponStats.HasStatsFor(readyWeaponType))
         {
-            int qualityColor = weaponStats.Rarity == 1 ? Font.CR_LIGHTBLUE
-                : weaponStats.Rarity == 2 ? Font.CR_PURPLE
-                : weaponStats.Rarity == 3 ? Font.CR_ORANGE
-                : weaponStats.Rarity >= 4 ? Font.CR_CYAN : Font.CR_GRAY;
-            String weaponQuality = weaponStats.Rarity == 1 ? "RARE"
-                : weaponStats.Rarity == 2 ? "EPIC"
-                : weaponStats.Rarity == 3 ? "MYTHIC"
-                : weaponStats.Rarity >= 4 ? "GODLY" : "COMMON";
+            int readyRarity = weaponStats.RarityFor(readyWeaponType);
+            int readyDamage = weaponStats.DamageFor(readyWeaponType);
+            int readyCritical = weaponStats.CriticalFor(readyWeaponType);
+            int qualityColor = readyRarity == 1 ? Font.CR_LIGHTBLUE
+                : readyRarity == 2 ? Font.CR_PURPLE
+                : readyRarity == 3 ? Font.CR_ORANGE
+                : readyRarity >= 4 ? Font.CR_CYAN : Font.CR_GRAY;
+            String weaponQuality = weaponStats.RarityNameFor(readyWeaponType);
             // Keep quality and rolled stats on separate rows.  The old single
             // tiny line was difficult to read and crowded the panel edge.
-            Fill(weaponStats.Rarity == 1 ? Color(255, 75, 165, 255)
-                : weaponStats.Rarity == 2 ? Color(255, 185, 65, 255)
-                : weaponStats.Rarity == 3 ? Color(255, 255, 150, 20)
-                : weaponStats.Rarity >= 4 ? Color(255, 40, 225, 255)
+            Fill(readyRarity == 1 ? Color(255, 75, 165, 255)
+                : readyRarity == 2 ? Color(255, 185, 65, 255)
+                : readyRarity == 3 ? Color(255, 255, 150, 20)
+                : readyRarity >= 4 ? Color(255, 40, 225, 255)
                 : Color(255, 105, 115, 125),
                 315, -84, 144, 3, DI_SCREEN_CENTER_BOTTOM);
             DrawString(LabelFont, weaponQuality,
@@ -109,7 +111,7 @@ class DTMStatusBar : BaseStatusBar
                 qualityColor, 1.0, scale: (1.18, 1.18));
             DrawString(LabelFont,
                 String.Format("DMG +%d%%     CRIT %d%%",
-                    weaponStats.DamageBonus, weaponStats.CritChance),
+                    readyDamage, readyCritical),
                 (387, -61), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
                 Font.CR_GRAY, 0.95, scale: (1.02, 1.02));
         }
@@ -164,14 +166,20 @@ class DTMStatusBar : BaseStatusBar
             bool ownsType = CPlayer.mo.FindInventory(nearbyDrop.WeaponType) != null;
             String ownedLine;
             int ownedColor = Font.CR_GRAY;
-            if (ownedStats && ownedStats.WeaponType == nearbyDrop.WeaponType)
+            if (ownedStats && ownedStats.HasStatsFor(nearbyDrop.WeaponType))
             {
-                int damageDelta = nearbyDrop.DamageBonus - ownedStats.DamageBonus;
-                int critDelta = nearbyDrop.CritChance - ownedStats.CritChance;
+                int ownedDamage = ownedStats.DamageFor(nearbyDrop.WeaponType);
+                int ownedCritical = ownedStats.CriticalFor(nearbyDrop.WeaponType);
+                int damageDelta = nearbyDrop.DamageBonus - ownedDamage;
+                int critDelta = nearbyDrop.CritChance - ownedCritical;
+                String verdict = damageDelta >= 0 && critDelta >= 0
+                    ? "UPGRADE" : damageDelta <= 0 && critDelta <= 0
+                    ? "DOWNGRADE" : "SIDEGRADE";
                 ownedLine = String.Format(
-                    "OWNED    DMG +%d%% (DELTA %d)    CRIT %d%% (DELTA %d)",
-                    ownedStats.DamageBonus, damageDelta,
-                    ownedStats.CritChance, critDelta);
+                    "%s  //  OWNED DMG +%d%% (DELTA %d)  CRIT %d%% (DELTA %d)",
+                    verdict,
+                    ownedDamage, damageDelta,
+                    ownedCritical, critDelta);
                 ownedColor = damageDelta >= 0 && critDelta >= 0
                     ? Font.CR_GREEN : Font.CR_ORANGE;
             }
