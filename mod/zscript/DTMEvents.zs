@@ -43,7 +43,20 @@ class DTMInputHandler : EventHandler
         if (!pawn) return;
 
         if (e.Name == "DTM_CAM_LEFT") pawn.RotateCamera(-2);
-        else if (e.Name == "DTM_CAM_RIGHT") pawn.RotateCamera(2);
+        else if (e.Name == "DTM_CAM_RIGHT")
+        {
+            // E doubles as the loot interaction key.  A visible nearby drop
+            // always takes priority; camera rotation remains unchanged when
+            // there is nothing to equip.
+            DTMWeaponDrop nearby = DTMWeaponDrop(pawn.NearbyWeaponDrop);
+            if (nearby)
+            {
+                if (nearby.EquipTo(pawn)) pawn.NearbyWeaponDrop = null;
+                else if (e.Player == consoleplayer)
+                    Console.Printf("Could not equip that weapon drop.");
+            }
+            else pawn.RotateCamera(2);
+        }
         else if (e.Name == "DTM_CAM_PITCH")
         {
             pawn.CycleCameraPitch();

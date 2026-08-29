@@ -78,10 +78,10 @@ class DTMStatusBar : BaseStatusBar
             DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
             Font.CR_CYAN, 0.9, scale: (1.1, 1.1));
         DrawString(NumberFont, ammo1 ? FormatNumber(ammoAmount, 3) : "--",
-            (387, -108), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+            (387, -111), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
             ammo1 && ammoAmount <= max(1, ammo1.MaxAmount / 10)
                 ? Font.CR_ORANGE : Font.CR_GOLD,
-            1.0, scale: (2.2, 2.2));
+            1.0, scale: (1.85, 1.85));
 
         DTMWeaponStats weaponStats = DTMWeaponStats(
             CPlayer.mo.FindInventory('DTMWeaponStats'));
@@ -105,15 +105,15 @@ class DTMStatusBar : BaseStatusBar
                 : readyRarity == 3 ? Color(255, 255, 150, 20)
                 : readyRarity >= 4 ? Color(255, 40, 225, 255)
                 : Color(255, 105, 115, 125),
-                315, -84, 144, 3, DI_SCREEN_CENTER_BOTTOM);
+                348, -84, 78, 2, DI_SCREEN_CENTER_BOTTOM);
             DrawString(LabelFont, weaponQuality,
-                (387, -78), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
-                qualityColor, 1.0, scale: (1.18, 1.18));
+                (387, -76), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                qualityColor, 1.0, scale: (0.95, 0.95));
             DrawString(LabelFont,
                 String.Format("DMG +%d%%     CRIT %d%%",
                     readyDamage, readyCritical),
-                (387, -61), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
-                Font.CR_GRAY, 0.95, scale: (1.02, 1.02));
+                (387, -58), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                Font.CR_GRAY, 0.95, scale: (0.78, 0.78));
         }
 
         if (ammo1 && ammo1.Icon.IsValid())
@@ -147,7 +147,7 @@ class DTMStatusBar : BaseStatusBar
                 DI_SCREEN_CENTER_BOTTOM);
             Fill(Color(255, 0, 205, 245), -270, -390, 540, 4,
                 DI_SCREEN_CENTER_BOTTOM);
-            DrawString(LabelFont, "WEAPON DROP  //  PRESS USE TO EQUIP",
+            DrawString(LabelFont, "WEAPON DROP  //  PRESS E OR USE TO EQUIP",
                 (-248, -376), DI_SCREEN_CENTER_BOTTOM,
                 Font.CR_CYAN, 1.0, scale: (1.25, 1.25));
             DrawString(LabelFont,

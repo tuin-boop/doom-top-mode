@@ -186,7 +186,10 @@ class DTMWeaponDrop : Inventory
         Height 14;
         Inventory.MaxAmount 1;
         Inventory.PickupSound "misc/w_pkup";
-        +INVENTORY.ALWAYSPICKUP
+        // Rolled weapons are choices, not ordinary Doom pickups.  Removing
+        // SPECIAL makes touching one completely inert; EquipTo is the sole
+        // path that can consume it.
+        -SPECIAL
         +FLOATBOB
         +NOGRAVITY
     }
@@ -279,7 +282,7 @@ class DTMWeaponDrop : Inventory
         }
 
         toucher.player.PendingWeapon = newWeapon;
-        toucher.A_Log(String.Format("%s %s equipped: +%d%% damage, %d%% critical chance",
+        toucher.A_Log(String.Format("EQUIPPED %s %s: +%d%% damage, %d%% critical chance",
             RarityName(), WeaponLabel, DamageBonus, CritChance), true);
         GoAwayAndDie();
         return true;

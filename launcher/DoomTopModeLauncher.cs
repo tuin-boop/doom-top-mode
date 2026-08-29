@@ -41,6 +41,14 @@ internal static class DoomTopModeLauncher
         try
         {
             string root = AppDomain.CurrentDomain.BaseDirectory;
+            Process existingGame = FindExistingTopDoomGame();
+            if (existingGame != null)
+            {
+                FocusExistingGame(existingGame);
+                MessageBox.Show("Tuin's Top Doom is already running. The existing game was brought to the front.",
+                    Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 0;
+            }
             string engine = FirstExisting(
                 Path.Combine(root, "engine", "uzdoom.exe"),
                 Path.Combine(root, "uzdoom.exe"),
@@ -288,9 +296,28 @@ internal static class DoomTopModeLauncher
         return 1;
     }
 
-    private static void FocusExistingGame()
+    private static Process FindExistingTopDoomGame()
     {
         foreach (Process process in Process.GetProcessesByName("uzdoom"))
+        {
+            try
+            {
+                string path = process.MainModule.FileName.ToLowerInvariant();
+                if (path.Contains("doomtopmode") || path.Contains("doom-top-mode") ||
+                    path.Contains("tuins-top-doom"))
+                    return process;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    private static void FocusExistingGame(Process preferred = null)
+    {
+        Process[] candidates = preferred != null
+            ? new Process[] { preferred }
+            : Process.GetProcessesByName("uzdoom");
+        foreach (Process process in candidates)
         {
             try
             {
