@@ -785,6 +785,13 @@ class DTMTwinPlasmaTestDrop : DTMWeaponDrop
         }
         InitTwinPlasma(2, testLevel);
     }
+
+    States
+    {
+    Spawn:
+        PLAS A -1 Bright;
+        Stop;
+    }
 }
 
 class DTMRiotShotgunTestDrop : DTMWeaponDrop
@@ -818,6 +825,14 @@ class DTMUziTestDrop : DTMWeaponDrop
             if (progress) testLevel = max(testLevel, progress.PlayerLevel);
         }
         InitUzi(1, testLevel);
+    }
+
+
+    States
+    {
+    Spawn:
+        MGUN A -1 Bright;
+        Stop;
     }
 }
 
