@@ -436,5 +436,26 @@ class DTMStatusBar : BaseStatusBar
             Fill(Color(255, 65, 245, 90), -116, -75,
                 232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
         }
+
+        PowerDTMCyberForm cyberPower = PowerDTMCyberForm(
+            CPlayer.mo.FindInventory('PowerDTMCyberForm'));
+        if (cyberPower)
+        {
+            double formRatio = clamp(cyberPower.EffectTics /
+                double(max(1, cyberPower.MaxEffectTics)), 0.0, 1.0);
+            int formSeconds = max(0, (cyberPower.EffectTics + 34) / 35);
+            Fill(Color(235, 0, 0, 0), -132, -104, 264, 38,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(230, 16, 10, 6), -128, -100, 256, 30,
+                DI_SCREEN_CENTER_BOTTOM);
+            DrawString(LabelFont,
+                String.Format("CYBERDEMON FORM  //  %d SEC", formSeconds),
+                (0, -95), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                Font.CR_ORANGE, 1.0, scale: (1.02, 1.02));
+            Fill(Color(255, 18, 28, 25), -116, -75, 232, 6,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(255, 255, 120, 35), -116, -75,
+                232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
+        }
     }
 }
