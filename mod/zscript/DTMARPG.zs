@@ -316,6 +316,118 @@ class DTMRiotShotgun : Shotgun
     }
 }
 
+// Thirty-round machine-pistol variant. Its two-tic burst is strong, but every
+// magazine forces a visible 30-tic reload that keeps sustained damage close to
+// the chaingun instead of replacing it outright.
+class DTMUzi : Chaingun
+{
+    int MagazineAmmo;
+    int ReloadTicks;
+    bool Reloading;
+
+    Default
+    {
+        Weapon.SelectionOrder 695;
+        // The custom magazine transfers reserve ammo during Reload, so the
+        // engine must not consume a second bullet automatically on Fire.
+        Weapon.AmmoUse 0;
+        Weapon.AmmoGive 40;
+        Weapon.AmmoType "Clip";
+        Inventory.PickupMessage "Uzi acquired.";
+        Obituary "$OB_MPCHAINGUN";
+        Tag "UZI";
+    }
+
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        MagazineAmmo = 0;
+        ReloadTicks = 0;
+        Reloading = false;
+    }
+
+    void StartReload()
+    {
+        if (Reloading || MagazineAmmo >= 30 || !Owner || !Owner.player) return;
+        Ammo reserve = Ammo(Owner.FindInventory('Clip'));
+        if (!reserve || reserve.Amount <= 0) return;
+        Owner.player.SetPsprite(PSP_WEAPON, FindState('Reload'), true);
+    }
+
+    action void A_BeginUziReload()
+    {
+        DTMUzi uzi = DTMUzi(invoker);
+        if (!uzi || !player) return;
+        Ammo reserve = Ammo(player.mo.FindInventory('Clip'));
+        if (uzi.MagazineAmmo >= 30 || !reserve || reserve.Amount <= 0)
+        {
+            uzi.Reloading = false;
+            player.SetPsprite(PSP_WEAPON, uzi.FindState('Ready'), true);
+            return;
+        }
+        uzi.Reloading = true;
+        uzi.ReloadTicks = 30;
+        player.mo.A_StartSound("weapons/shotgr", CHAN_WEAPON);
+    }
+
+    action void A_FireUzi()
+    {
+        if (player == null) return;
+        DTMUzi uzi = DTMUzi(invoker);
+        Weapon weap = player.ReadyWeapon;
+        if (!uzi || weap != uzi) return;
+        if (uzi.MagazineAmmo <= 0)
+        {
+            uzi.StartReload();
+            return;
+        }
+        uzi.MagazineAmmo--;
+        A_StartSound("weapons/chngun", CHAN_WEAPON);
+        player.SetPsprite(PSP_FLASH, weap.FindState('Flash'), true);
+        player.mo.PlayAttacking2();
+        int bulletDamage = 4 * Random[UziShot](1, 3);
+        double shotAngle = angle + Random2[UziShot]() * (3.0 / 256.0);
+        double shotPitch = BulletSlope();
+        if (GetCVar("vertspread") && !sv_novertspread)
+            shotPitch += Random2[UziShot]() * (2.0 / 256.0);
+        LineAttack(shotAngle, PLAYERMISSILERANGE, shotPitch,
+            bulletDamage, 'Hitscan', 'BulletPuff');
+    }
+
+    action void A_UziReloadTick()
+    {
+        DTMUzi uzi = DTMUzi(invoker);
+        if (!uzi || !player) return;
+        uzi.ReloadTicks = max(0, uzi.ReloadTicks - 1);
+        if (uzi.ReloadTicks > 0) return;
+        Ammo reserve = Ammo(player.mo.FindInventory('Clip'));
+        if (reserve)
+        {
+            int loadedBullets = min(30 - uzi.MagazineAmmo, reserve.Amount);
+            uzi.MagazineAmmo += loadedBullets;
+            reserve.Amount -= loadedBullets;
+        }
+        uzi.Reloading = false;
+        player.SetPsprite(PSP_WEAPON, uzi.FindState('Ready'), true);
+    }
+
+    States
+    {
+    Ready:
+        CHGG A 1 A_WeaponReady(WRF_AllowReload);
+        Loop;
+    Fire:
+        CHGG A 2 A_FireUzi;
+        CHGG B 0 A_ReFire;
+        Goto Ready;
+    Reload:
+        CHGG A 0 A_BeginUziReload;
+    ReloadLoop:
+        CHGG A 1 A_UziReloadTick;
+        Goto ReloadLoop;
+    }
+}
+
 class DTMWeaponStats : Inventory
 {
     // Legacy single-roll fields remain for save compatibility. New pickups
@@ -326,11 +438,11 @@ class DTMWeaponStats : Inventory
     int CritChance;
     String WeaponLabel;
     Class<Weapon> WeaponType;
-    bool HasWeaponRoll[8];
-    int WeaponRarity[8];
-    int WeaponDamageBonus[8];
-    int WeaponCritChance[8];
-    int WeaponLevel[8];
+    bool HasWeaponRoll[9];
+    int WeaponRarity[9];
+    int WeaponDamageBonus[9];
+    int WeaponCritChance[9];
+    int WeaponLevel[9];
 
     Default
     {
@@ -349,6 +461,7 @@ class DTMWeaponStats : Inventory
         if (type == 'BFG9000') return 5;
         if (type == 'DTMTwinPlasmaRifle') return 6;
         if (type == 'DTMRiotShotgun') return 7;
+        if (type == 'DTMUzi') return 8;
         return -1;
     }
 
@@ -499,6 +612,12 @@ class DTMWeaponDrop : Inventory
             WeaponLabel = "RIOT SHOTGUN";
             SetStateLabel("Shotgun");
         }
+        else if (Rarity >= 1 && roll >= 56 && roll < 64)
+        {
+            WeaponType = 'DTMUzi';
+            WeaponLabel = "UZI";
+            SetStateLabel("Chaingun");
+        }
         else if (Rarity >= 1 && roll >= 54)
         {
             WeaponType = 'RocketLauncher';
@@ -552,6 +671,20 @@ class DTMWeaponDrop : Inventory
         SetStateLabel("Shotgun");
         A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
             Color(255, 110, 35), 58, 58, DynamicLight.LF_ATTENUATE);
+    }
+
+    void InitUzi(int quality, int dropLevel)
+    {
+        Rarity = clamp(quality, 0, 4);
+        ItemLevel = max(1, dropLevel);
+        DamageBonus = Rarity * 14 + (ItemLevel - 1) * 2 +
+            Random(4, 12 + Rarity * 7);
+        CritChance = Rarity * 3 + Random(0, 2 + Rarity * 2);
+        WeaponType = 'DTMUzi';
+        WeaponLabel = "UZI";
+        SetStateLabel("Chaingun");
+        A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
+            Color(255, 195, 45), 54, 54, DynamicLight.LF_ATTENUATE);
     }
 
     void InitDrop(int quality, bool bossDrop, int dropLevel = 1)
@@ -668,6 +801,23 @@ class DTMRiotShotgunTestDrop : DTMWeaponDrop
             if (progress) testLevel = max(testLevel, progress.PlayerLevel);
         }
         InitRiotShotgun(1, testLevel);
+    }
+}
+
+class DTMUziTestDrop : DTMWeaponDrop
+{
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        int testLevel = 1;
+        for (int i = 0; i < MAXPLAYERS; i++)
+        {
+            if (!PlayerInGame[i] || !players[i].mo) continue;
+            DTMPlayerProgress progress = DTMPlayerProgress(
+                players[i].mo.FindInventory('DTMPlayerProgress'));
+            if (progress) testLevel = max(testLevel, progress.PlayerLevel);
+        }
+        InitUzi(1, testLevel);
     }
 }
 

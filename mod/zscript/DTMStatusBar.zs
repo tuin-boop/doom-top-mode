@@ -88,6 +88,30 @@ class DTMStatusBar : BaseStatusBar
                 ? Font.CR_ORANGE : Font.CR_GOLD,
             1.0, scale: (1.85, 1.85));
 
+        DTMUzi readyUzi = DTMUzi(CPlayer.ReadyWeapon);
+        if (readyUzi)
+        {
+            DrawString(LabelFont,
+                String.Format("MAG  %02d / 30", readyUzi.MagazineAmmo),
+                (387, -166), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                readyUzi.Reloading ? Font.CR_ORANGE : Font.CR_CYAN,
+                0.95, scale: (0.92, 0.92));
+            if (readyUzi.Reloading)
+            {
+                double reloadRatio = clamp(
+                    (30 - readyUzi.ReloadTicks) / 30.0, 0.0, 1.0);
+                Fill(Color(245, 0, 0, 0), 334, -188, 106, 12,
+                    DI_SCREEN_CENTER_BOTTOM);
+                Fill(Color(255, 26, 36, 40), 337, -185, 100, 6,
+                    DI_SCREEN_CENTER_BOTTOM);
+                Fill(Color(255, 255, 155, 25), 337, -185,
+                    100 * reloadRatio, 6, DI_SCREEN_CENTER_BOTTOM);
+                DrawString(LabelFont, "RELOADING", (387, -207),
+                    DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                    Font.CR_ORANGE, 0.9, scale: (0.86, 0.86));
+            }
+        }
+
         DTMWeaponStats weaponStats = DTMWeaponStats(
             CPlayer.mo.FindInventory('DTMWeaponStats'));
         Class<Weapon> readyWeaponType = CPlayer.ReadyWeapon

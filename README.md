@@ -62,6 +62,8 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Testing cheat: enter `dtm_spawn_dual_plasma` in the console to summon an Epic twin-plasma drop at the player's current level
 - Rare-or-better loot can roll a riot shotgun: five lighter pellets in a tight cone with roughly twice the normal shotgun's fire rate; it shares slot `3` with the other shotguns
 - Riot shotgun testing cheat: enter `dtm_spawn_riot_shotgun` in the console to summon a Rare drop at the player's current level
+- Rare-or-better loot can roll an Uzi with a real 30-round magazine, high burst damage, automatic/`R` reload, and an animated reload HUD; it shares slot `4` with the chaingun
+- Uzi testing cheat: enter `dtm_spawn_uzi` in the console to summon a Rare drop at the player's current level
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted
 - Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
 - Epic, Mythic, and Godly monsters carry color-coded world glows

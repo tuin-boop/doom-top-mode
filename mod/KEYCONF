@@ -44,3 +44,4 @@ defaultbind N "dtm_toggle_wall_cutout"
 // Development cheat: open the console and enter dtm_spawn_dual_plasma.
 alias "dtm_spawn_dual_plasma" "summon DTMTwinPlasmaTestDrop"
 alias "dtm_spawn_riot_shotgun" "summon DTMRiotShotgunTestDrop"
+alias "dtm_spawn_uzi" "summon DTMUziTestDrop"
