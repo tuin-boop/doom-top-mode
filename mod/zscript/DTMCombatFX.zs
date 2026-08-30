@@ -404,6 +404,14 @@ class DTMCombatFXHandler : StaticEventHandler
             if (greenPlasmaTrail)
                 greenPlasmaTrail.InitTrail(missile, 'GreenPlasma');
         }
+        else if (missileType == 'BaronBall')
+        {
+            missile.A_AttachLight('DTMProjectileLight', DynamicLight.PointLight,
+                Color(75, 255, 95), 96, 96, DynamicLight.LF_ATTENUATE);
+            DTMProjectileTrailEmitter baronTrail = DTMProjectileTrailEmitter(
+                Actor.Spawn('DTMProjectileTrailEmitter', missile.Pos, ALLOW_REPLACE));
+            if (baronTrail) baronTrail.InitTrail(missile, 'GreenPlasma');
+        }
         else if (missileType == 'BFGBall')
         {
             missile.A_AttachLight('DTMProjectileLight', DynamicLight.PointLight,

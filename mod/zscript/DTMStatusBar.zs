@@ -415,5 +415,26 @@ class DTMStatusBar : BaseStatusBar
                 DI_SCREEN_CENTER | DI_TEXT_ALIGN_CENTER,
                 Font.CR_CYAN, 0.9, scale: (1.0, 1.0));
         }
+
+        PowerDTMBaronForm baronPower = PowerDTMBaronForm(
+            CPlayer.mo.FindInventory('PowerDTMBaronForm'));
+        if (baronPower)
+        {
+            double formRatio = clamp(baronPower.EffectTics /
+                double(max(1, baronPower.MaxEffectTics)), 0.0, 1.0);
+            int formSeconds = max(0, (baronPower.EffectTics + 34) / 35);
+            Fill(Color(235, 0, 0, 0), -132, -104, 264, 38,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(230, 32, 8, 4), -128, -100, 256, 30,
+                DI_SCREEN_CENTER_BOTTOM);
+            DrawString(LabelFont,
+                String.Format("BARON FORM  //  %d SEC", formSeconds),
+                (0, -95), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                Font.CR_GREEN, 1.0, scale: (1.02, 1.02));
+            Fill(Color(255, 18, 28, 25), -116, -75, 232, 6,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(255, 65, 245, 90), -116, -75,
+                232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
+        }
     }
 }
