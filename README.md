@@ -66,6 +66,7 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Uzi testing cheat: enter `dtm_spawn_uzi` in the console to summon a Rare drop at the player's current level
 - Experimental Baron-form powerup temporarily replaces the visible marine with a Baron body, grants a 1,000-health form, 30% damage resistance, 25% increased damage, 10% movement speed, close-range claws, and Baron fireballs for 30 seconds
 - Experimental Cyberdemon-form powerup grants a 4,000-health form, 50% damage resistance, 35% increased damage, and a player-controlled rocket arm for 30 seconds
+- Monster-form pickups appear as red-tinted floating megaspheres with distinct infernal glow colors
 - Baron-form testing cheat: enter `dtm_spawn_baron_power` in the console
 - Cyberdemon-form testing cheat: enter `dtm_spawn_cyber_power` in the console
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted

@@ -31,11 +31,25 @@ class DTMStatusBar : BaseStatusBar
             DI_SCREEN_CENTER_BOTTOM | DI_ITEM_LEFT_TOP, 0.92,
             scale: (0.82, 0.82));
 
+        PowerDTMBaronForm baronPower = PowerDTMBaronForm(
+            CPlayer.mo.FindInventory('PowerDTMBaronForm'));
+        PowerDTMCyberForm cyberPower = PowerDTMCyberForm(
+            CPlayer.mo.FindInventory('PowerDTMCyberForm'));
         int health = max(0, CPlayer.health);
         int armor = GetArmorAmount();
         DTMPlayerProgress playerProgress = DTMPlayerProgress(
             CPlayer.mo.FindInventory('DTMPlayerProgress'));
         int healthMaximum = max(1, CPlayer.mo.GetMaxHealth(true));
+        if (baronPower)
+        {
+            health = baronPower.FormHealth;
+            healthMaximum = baronPower.FormMaxHealth;
+        }
+        else if (cyberPower)
+        {
+            health = cyberPower.FormHealth;
+            healthMaximum = cyberPower.FormMaxHealth;
+        }
         int armorMaximum = playerProgress
             ? playerProgress.MaxArmorForLevel() : 200;
         double healthRatio = clamp(health / double(healthMaximum), 0.0, 1.0);
@@ -416,8 +430,6 @@ class DTMStatusBar : BaseStatusBar
                 Font.CR_CYAN, 0.9, scale: (1.0, 1.0));
         }
 
-        PowerDTMBaronForm baronPower = PowerDTMBaronForm(
-            CPlayer.mo.FindInventory('PowerDTMBaronForm'));
         if (baronPower)
         {
             double formRatio = clamp(baronPower.EffectTics /
@@ -437,8 +449,6 @@ class DTMStatusBar : BaseStatusBar
                 232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
         }
 
-        PowerDTMCyberForm cyberPower = PowerDTMCyberForm(
-            CPlayer.mo.FindInventory('PowerDTMCyberForm'));
         if (cyberPower)
         {
             double formRatio = clamp(cyberPower.EffectTics /

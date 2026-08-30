@@ -116,8 +116,8 @@ class PowerDTMBaronForm : Powerup
     double PreviousAlpha;
     int PreviousRenderStyle;
     double PreviousSpeed;
-    int AppliedHealthBonus;
-    int OriginalHealth;
+    int FormHealth;
+    int FormMaxHealth;
 
     Default
     {
@@ -137,16 +137,12 @@ class PowerDTMBaronForm : Powerup
         PreviousAlpha = Owner.Alpha;
         PreviousRenderStyle = Owner.GetRenderStyle();
         PreviousSpeed = Owner.Speed;
-        OriginalHealth = Owner.health;
         PreviousWeapon = Owner.player.ReadyWeapon
             ? Owner.player.ReadyWeapon.GetClass() : null;
         Owner.A_SetRenderStyle(0.0, STYLE_None);
         Owner.Speed *= 1.10;
-
-        PlayerPawn pawn = PlayerPawn(Owner);
-        AppliedHealthBonus = max(0, 1000 - Owner.GetMaxHealth(true));
-        pawn.BonusHealth += AppliedHealthBonus;
-        Owner.health = max(Owner.health, 1000);
+        FormMaxHealth = 1000;
+        FormHealth = FormMaxHealth;
 
         VisualBody = Actor.Spawn('DTMBaronFormVisual', Owner.pos, ALLOW_REPLACE);
         if (VisualBody)
@@ -169,6 +165,11 @@ class PowerDTMBaronForm : Powerup
         // STYLE_None also hides voxel/model representations; alpha alone does
         // not reliably suppress the top-down marine in every renderer path.
         Owner.A_SetRenderStyle(0.0, STYLE_None);
+        if (FormHealth <= 0)
+        {
+            EffectTics = min(EffectTics, 1);
+            return;
+        }
         if (!VisualBody)
         {
             VisualBody = Actor.Spawn('DTMBaronFormVisual', Owner.pos, ALLOW_REPLACE);
@@ -180,9 +181,19 @@ class PowerDTMBaronForm : Powerup
         bool passive, Actor inflictor, Actor source, int flags, double angle)
     {
         if (damage <= 0) return;
-        newDamage = passive
-            ? max(1, int(damage * 0.70 + 0.5))
-            : max(1, int(damage * 1.25 + 0.5));
+        if (!passive)
+        {
+            newDamage = max(1, int(damage * 1.25 + 0.5));
+            return;
+        }
+
+        int absorbedDamage = max(1, int(damage * 0.70 + 0.5));
+        int overflow = max(0, absorbedDamage - FormHealth);
+        FormHealth = max(0, FormHealth - absorbedDamage);
+        // The dedicated pool cannot be clamped by normal player-health code.
+        // Only damage beyond the exhausted form reaches the real marine.
+        newDamage = overflow;
+        if (FormHealth <= 0) EffectTics = min(EffectTics, 1);
     }
 
     override void EndEffect()
@@ -197,15 +208,6 @@ class PowerDTMBaronForm : Powerup
 
         Owner.A_SetRenderStyle(PreviousAlpha, PreviousRenderStyle);
         Owner.Speed = PreviousSpeed;
-        if (AppliedHealthBonus > 0)
-        {
-            PlayerPawn pawn = PlayerPawn(Owner);
-            pawn.BonusHealth = max(0, pawn.BonusHealth - AppliedHealthBonus);
-            AppliedHealthBonus = 0;
-        }
-        // The form's large health pool is temporary, not a free full heal.
-        Owner.health = max(1, min(Owner.health,
-            min(OriginalHealth, Owner.GetMaxHealth(true))));
         Owner.TakeInventory('DTMBaronWeapon', 1);
         if (PreviousWeapon)
         {
@@ -313,8 +315,8 @@ class PowerDTMCyberForm : Powerup
     double PreviousAlpha;
     int PreviousRenderStyle;
     double PreviousSpeed;
-    int AppliedHealthBonus;
-    int OriginalHealth;
+    int FormHealth;
+    int FormMaxHealth;
 
     Default
     {
@@ -332,16 +334,12 @@ class PowerDTMCyberForm : Powerup
         PreviousAlpha = Owner.Alpha;
         PreviousRenderStyle = Owner.GetRenderStyle();
         PreviousSpeed = Owner.Speed;
-        OriginalHealth = Owner.health;
         PreviousWeapon = Owner.player.ReadyWeapon
             ? Owner.player.ReadyWeapon.GetClass() : null;
         Owner.A_SetRenderStyle(0.0, STYLE_None);
         Owner.Speed *= 0.95;
-
-        PlayerPawn pawn = PlayerPawn(Owner);
-        AppliedHealthBonus = max(0, 4000 - Owner.GetMaxHealth(true));
-        pawn.BonusHealth += AppliedHealthBonus;
-        Owner.health = max(Owner.health, 4000);
+        FormMaxHealth = 4000;
+        FormHealth = FormMaxHealth;
 
         VisualBody = Actor.Spawn('DTMCyberFormVisual', Owner.pos, ALLOW_REPLACE);
         if (VisualBody)
@@ -362,6 +360,11 @@ class PowerDTMCyberForm : Powerup
         Super.DoEffect();
         if (!Owner) return;
         Owner.A_SetRenderStyle(0.0, STYLE_None);
+        if (FormHealth <= 0)
+        {
+            EffectTics = min(EffectTics, 1);
+            return;
+        }
         if (!VisualBody)
         {
             VisualBody = Actor.Spawn('DTMCyberFormVisual', Owner.pos, ALLOW_REPLACE);
@@ -373,9 +376,17 @@ class PowerDTMCyberForm : Powerup
         bool passive, Actor inflictor, Actor source, int flags, double angle)
     {
         if (damage <= 0) return;
-        newDamage = passive
-            ? max(1, int(damage * 0.50 + 0.5))
-            : max(1, int(damage * 1.35 + 0.5));
+        if (!passive)
+        {
+            newDamage = max(1, int(damage * 1.35 + 0.5));
+            return;
+        }
+
+        int absorbedDamage = max(1, int(damage * 0.50 + 0.5));
+        int overflow = max(0, absorbedDamage - FormHealth);
+        FormHealth = max(0, FormHealth - absorbedDamage);
+        newDamage = overflow;
+        if (FormHealth <= 0) EffectTics = min(EffectTics, 1);
     }
 
     override void EndEffect()
@@ -390,14 +401,6 @@ class PowerDTMCyberForm : Powerup
 
         Owner.A_SetRenderStyle(PreviousAlpha, PreviousRenderStyle);
         Owner.Speed = PreviousSpeed;
-        if (AppliedHealthBonus > 0)
-        {
-            PlayerPawn pawn = PlayerPawn(Owner);
-            pawn.BonusHealth = max(0, pawn.BonusHealth - AppliedHealthBonus);
-            AppliedHealthBonus = 0;
-        }
-        Owner.health = max(1, min(Owner.health,
-            min(OriginalHealth, Owner.GetMaxHealth(true))));
         Owner.TakeInventory('DTMCyberWeapon', 1);
         if (PreviousWeapon)
         {
@@ -410,6 +413,13 @@ class PowerDTMCyberForm : Powerup
 
 class DTMCyberFormPowerup : PowerupGiver
 {
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        A_AttachLight('DTMCyberPowerGlow', DynamicLight.PointLight,
+            Color(255, 55, 18), 132, 132, DynamicLight.LF_ATTENUATE);
+    }
+
     Default
     {
         +COUNTITEM
@@ -425,18 +435,26 @@ class DTMCyberFormPowerup : PowerupGiver
         Radius 20;
         Height 24;
         +FLOATBOB
+        +BRIGHT
+        Translation "192:207=48:63";
     }
     States
     {
     Spawn:
-        MISL A 5 Bright;
-        CYBR F 5 Bright;
+        MEGA A 6 Bright;
         Loop;
     }
 }
 
 class DTMBaronFormPowerup : PowerupGiver
 {
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        A_AttachLight('DTMBaronPowerGlow', DynamicLight.PointLight,
+            Color(205, 20, 20), 112, 112, DynamicLight.LF_ATTENUATE);
+    }
+
     Default
     {
         +COUNTITEM
@@ -452,11 +470,13 @@ class DTMBaronFormPowerup : PowerupGiver
         Radius 18;
         Height 24;
         +FLOATBOB
+        +BRIGHT
+        Translation "192:207=32:47";
     }
     States
     {
     Spawn:
-        BAL7 AB 5 Bright;
+        MEGA A 6 Bright;
         Loop;
     }
 }
