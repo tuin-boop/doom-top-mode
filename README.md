@@ -64,11 +64,16 @@ Commercial Doom IWADs and Voxel Doom are **not redistributed**.
 - Riot shotgun testing cheat: enter `dtm_spawn_riot_shotgun` in the console to summon a Rare drop at the player's current level
 - Rare-or-better loot can roll an Uzi with a real 30-round magazine, high burst damage, automatic/`R` reload, and an animated reload HUD; it shares slot `4` with the chaingun
 - Uzi testing cheat: enter `dtm_spawn_uzi` in the console to summon a Rare drop at the player's current level
+- Epic-or-better loot can roll a Revenant Launcher that consumes rockets and fires fast, super-homing Revenant missiles; it shares slot `5` with the normal rocket launcher
+- Revenant Launcher testing cheat: enter `dtm_spawn_revenant_launcher` in the console
 - Experimental Baron-form powerup temporarily replaces the visible marine with a Baron body, grants a 1,000-health form, 30% damage resistance, 25% increased damage, 10% movement speed, close-range claws, and Baron fireballs at the monster's native attack cadence for 30 seconds
 - Experimental Cyberdemon-form powerup grants a 4,000-health form, 50% damage resistance, 35% increased damage, and the monster's authentic timed three-rocket burst for 30 seconds
+- Experimental Revenant-form powerup grants a fast 300-health form with native-timed punches and super-homing Revenant missiles for 30 seconds
+- Soulspheres have a 50% chance to become a uniformly random Baron, Cyberdemon, or Revenant form pickup; the remaining 50% stay normal Soulspheres
 - Monster-form pickups appear as red-tinted floating megaspheres with distinct infernal glow colors
 - Baron-form testing cheat: enter `dtm_spawn_baron_power` in the console
 - Cyberdemon-form testing cheat: enter `dtm_spawn_cyber_power` in the console
+- Revenant-form testing cheat: enter `dtm_spawn_revenant_power` in the console
 - Automatic camera avoidance is disabled by default; `B` enables it when wanted
 - Common, Rare, Epic, Mythic, and Godly monster variants with species-fitting names, visible affixes, and distinct Epic-purple, Mythic-gold, and Godly-cyan lighting
 - Epic, Mythic, and Godly monsters carry color-coded world glows

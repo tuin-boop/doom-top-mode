@@ -438,11 +438,11 @@ class DTMWeaponStats : Inventory
     int CritChance;
     String WeaponLabel;
     Class<Weapon> WeaponType;
-    bool HasWeaponRoll[9];
-    int WeaponRarity[9];
-    int WeaponDamageBonus[9];
-    int WeaponCritChance[9];
-    int WeaponLevel[9];
+    bool HasWeaponRoll[10];
+    int WeaponRarity[10];
+    int WeaponDamageBonus[10];
+    int WeaponCritChance[10];
+    int WeaponLevel[10];
 
     Default
     {
@@ -462,6 +462,7 @@ class DTMWeaponStats : Inventory
         if (type == 'DTMTwinPlasmaRifle') return 6;
         if (type == 'DTMRiotShotgun') return 7;
         if (type == 'DTMUzi') return 8;
+        if (type == 'DTMRevenantLauncher') return 9;
         return -1;
     }
 
@@ -600,6 +601,12 @@ class DTMWeaponDrop : Inventory
             WeaponLabel = "TWIN PLASMA RIFLE";
             SetStateLabel("Plasma");
         }
+        else if (Rarity >= 2 && roll >= 82)
+        {
+            WeaponType = 'DTMRevenantLauncher';
+            WeaponLabel = "REVENANT LAUNCHER";
+            SetStateLabel("Rocket");
+        }
         else if (Rarity >= 2 && roll >= 72)
         {
             WeaponType = 'PlasmaRifle';
@@ -685,6 +692,20 @@ class DTMWeaponDrop : Inventory
         SetStateLabel("Chaingun");
         A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
             Color(255, 195, 45), 54, 54, DynamicLight.LF_ATTENUATE);
+    }
+
+    void InitRevenantLauncher(int quality, int dropLevel)
+    {
+        Rarity = clamp(quality, 0, 4);
+        ItemLevel = max(1, dropLevel);
+        DamageBonus = Rarity * 14 + (ItemLevel - 1) * 2 +
+            Random(4, 12 + Rarity * 7);
+        CritChance = Rarity * 3 + Random(0, 2 + Rarity * 2);
+        WeaponType = 'DTMRevenantLauncher';
+        WeaponLabel = "REVENANT LAUNCHER";
+        SetStateLabel("Rocket");
+        A_AttachLight('DTMLootGlow', DynamicLight.PointLight,
+            Color(255, 70, 25), 72, 72, DynamicLight.LF_ATTENUATE);
     }
 
     void InitDrop(int quality, bool bossDrop, int dropLevel = 1)

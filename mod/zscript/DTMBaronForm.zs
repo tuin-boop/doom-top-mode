@@ -143,6 +143,8 @@ class PowerDTMBaronForm : Powerup
         // lets it restore the pawn before this form records that state.
         if (Owner.FindInventory('PowerDTMCyberForm'))
             Owner.TakeInventory('PowerDTMCyberForm', 1);
+        if (Owner.FindInventory('PowerDTMRevenantForm'))
+            Owner.TakeInventory('PowerDTMRevenantForm', 1);
 
         PreviousAlpha = Owner.Alpha;
         PreviousRenderStyle = Owner.GetRenderStyle();
@@ -356,6 +358,8 @@ class PowerDTMCyberForm : Powerup
 
         if (Owner.FindInventory('PowerDTMBaronForm'))
             Owner.TakeInventory('PowerDTMBaronForm', 1);
+        if (Owner.FindInventory('PowerDTMRevenantForm'))
+            Owner.TakeInventory('PowerDTMRevenantForm', 1);
 
         PreviousAlpha = Owner.Alpha;
         PreviousRenderStyle = Owner.GetRenderStyle();
@@ -437,6 +441,286 @@ class PowerDTMCyberForm : Powerup
     }
 }
 
+class DTMRevenantFormVisual : Revenant
+{
+    Default
+    {
+        -SOLID
+        -SHOOTABLE
+        -ISMONSTER
+        -COUNTKILL
+        +NOINTERACTION
+        +NOBLOCKMAP
+        +NOGRAVITY
+        +ISOMETRICSPRITES
+        RenderStyle "Normal";
+        Alpha 1.0;
+    }
+
+    override void Tick()
+    {
+        Super.Tick();
+        if (!tracer || tracer.health <= 0)
+        {
+            Destroy();
+            return;
+        }
+        SetOrigin(tracer.pos, false);
+        Angle = tracer.Angle;
+        Pitch = 0;
+        Vel = (0, 0, 0);
+    }
+
+    States
+    {
+    Spawn:
+    See:
+        SKEL AABBCCDDEEFF 2;
+        Loop;
+    Melee:
+        SKEL G 6;
+        SKEL H 6;
+        SKEL I 6;
+        Goto See;
+    Missile:
+        SKEL J 10 Bright;
+        SKEL K 20;
+        Goto See;
+    }
+}
+
+class DTMRevenantFormWeapon : DoomWeapon
+{
+    Default
+    {
+        Weapon.SelectionOrder 10;
+        Weapon.AmmoUse 0;
+        Tag "REVENANT ARMS";
+    }
+
+    action void A_SelectRevenantFormAttack()
+    {
+        if (!player) return;
+        DTMRevenantFormWeapon weapon = DTMRevenantFormWeapon(invoker);
+        PowerDTMRevenantForm power = PowerDTMRevenantForm(
+            player.mo.FindInventory('PowerDTMRevenantForm'));
+        if (!weapon) return;
+
+        FTranslatedLineTarget victim;
+        player.mo.AimLineAttack(player.mo.Angle, 96.0, victim,
+            0.0, ALF_CHECK3D);
+        if (victim.linetarget)
+        {
+            if (power && power.VisualBody)
+                power.VisualBody.SetStateLabel('Melee');
+            player.SetPsprite(PSP_WEAPON,
+                weapon.FindState('MeleeFire'), true);
+        }
+        else
+        {
+            if (power && power.VisualBody)
+                power.VisualBody.SetStateLabel('Missile');
+            player.SetPsprite(PSP_WEAPON,
+                weapon.FindState('MissileFire'), true);
+        }
+    }
+
+    action void A_RevenantFormPunch()
+    {
+        if (!player) return;
+        FTranslatedLineTarget victim;
+        double meleePitch = player.mo.AimLineAttack(
+            player.mo.Angle, 96.0, victim, 0.0, ALF_CHECK3D);
+        if (victim.linetarget)
+        {
+            player.mo.LineAttack(player.mo.Angle, 96.0, meleePitch, 45,
+                'Melee', 'BulletPuff', LAF_ISMELEEATTACK, victim);
+            player.mo.A_StartSound("skeleton/melee", CHAN_WEAPON);
+        }
+    }
+
+    action void A_FireRevenantFormMissile()
+    {
+        if (!player) return;
+        Actor missile, realMissile;
+        [missile, realMissile] = SpawnPlayerMissile(
+            'DTMSuperRevenantMissile');
+        DTMPlayer tacticalPawn = DTMPlayer(player.mo);
+        if (missile && tacticalPawn && tacticalPawn.AimTarget &&
+            tacticalPawn.AimTarget.health > 0)
+            missile.tracer = tacticalPawn.AimTarget;
+        player.mo.A_StartSound("skeleton/attack", CHAN_WEAPON);
+    }
+
+    States
+    {
+    Ready:
+        TNT1 A 1 A_WeaponReady;
+        Loop;
+    Deselect:
+        TNT1 A 1 A_Lower;
+        Loop;
+    Select:
+        TNT1 A 1 A_Raise;
+        Loop;
+    Fire:
+        TNT1 A 0 A_SelectRevenantFormAttack;
+        Wait;
+    MeleeFire:
+        TNT1 A 12;
+        TNT1 A 6 A_RevenantFormPunch;
+        TNT1 A 0 A_ReFire;
+        Goto Ready;
+    MissileFire:
+        TNT1 A 10;
+        TNT1 A 20 A_FireRevenantFormMissile;
+        TNT1 A 0 A_ReFire;
+        Goto Ready;
+    Spawn:
+        FATB A -1 Bright;
+        Stop;
+    }
+}
+
+class PowerDTMRevenantForm : Powerup
+{
+    Actor VisualBody;
+    Class<Weapon> PreviousWeapon;
+    double PreviousAlpha;
+    int PreviousRenderStyle;
+    double PreviousSpeed;
+    int FormHealth;
+    int FormMaxHealth;
+
+    Default
+    {
+        Powerup.Duration -30;
+    }
+
+    override void InitEffect()
+    {
+        Super.InitEffect();
+        if (!Owner || !Owner.player) return;
+        if (Owner.FindInventory('PowerDTMBaronForm'))
+            Owner.TakeInventory('PowerDTMBaronForm', 1);
+        if (Owner.FindInventory('PowerDTMCyberForm'))
+            Owner.TakeInventory('PowerDTMCyberForm', 1);
+
+        PreviousAlpha = Owner.Alpha;
+        PreviousRenderStyle = Owner.GetRenderStyle();
+        PreviousSpeed = Owner.Speed;
+        PreviousWeapon = Owner.player.ReadyWeapon
+            ? Owner.player.ReadyWeapon.GetClass() : null;
+        Owner.A_SetRenderStyle(0.0, STYLE_None);
+        Owner.Speed *= 1.15;
+        FormMaxHealth = 300;
+        FormHealth = FormMaxHealth;
+
+        VisualBody = Actor.Spawn('DTMRevenantFormVisual',
+            Owner.pos, ALLOW_REPLACE);
+        if (VisualBody)
+        {
+            VisualBody.tracer = Owner;
+            VisualBody.Angle = Owner.Angle;
+        }
+        Owner.GiveInventory('DTMRevenantFormWeapon', 1);
+        Weapon formWeapon = Weapon(
+            Owner.FindInventory('DTMRevenantFormWeapon'));
+        if (formWeapon) Owner.player.PendingWeapon = formWeapon;
+        Owner.A_StartSound("skeleton/sight", CHAN_BODY);
+        Console.MidPrint(null, "REVENANT FORM RISEN", true);
+    }
+
+    override void DoEffect()
+    {
+        Super.DoEffect();
+        if (!Owner) return;
+        Owner.A_SetRenderStyle(0.0, STYLE_None);
+        if (FormHealth <= 0)
+        {
+            EffectTics = min(EffectTics, 1);
+            return;
+        }
+        if (!VisualBody)
+        {
+            VisualBody = Actor.Spawn('DTMRevenantFormVisual',
+                Owner.pos, ALLOW_REPLACE);
+            if (VisualBody) VisualBody.tracer = Owner;
+        }
+    }
+
+    override void ModifyDamage(int damage, Name damageType, out int newDamage,
+        bool passive, Actor inflictor, Actor source, int flags, double angle)
+    {
+        if (damage <= 0) return;
+        if (!passive)
+        {
+            newDamage = max(1, int(damage * 1.15 + 0.5));
+            return;
+        }
+        int absorbedDamage = max(1, int(damage * 0.80 + 0.5));
+        int overflow = max(0, absorbedDamage - FormHealth);
+        FormHealth = max(0, FormHealth - absorbedDamage);
+        newDamage = overflow;
+        if (FormHealth <= 0) EffectTics = min(EffectTics, 1);
+    }
+
+    override void EndEffect()
+    {
+        Super.EndEffect();
+        if (VisualBody)
+        {
+            VisualBody.Destroy();
+            VisualBody = null;
+        }
+        if (!Owner) return;
+        Owner.A_SetRenderStyle(PreviousAlpha, PreviousRenderStyle);
+        Owner.Speed = PreviousSpeed;
+        Owner.TakeInventory('DTMRevenantFormWeapon', 1);
+        if (PreviousWeapon)
+        {
+            Weapon prior = Weapon(Owner.FindInventory(PreviousWeapon));
+            if (prior) Owner.player.PendingWeapon = prior;
+        }
+        Console.MidPrint(null, "REVENANT FORM CRUMBLES", true);
+    }
+}
+
+class DTMRevenantFormPowerup : PowerupGiver
+{
+    override void PostBeginPlay()
+    {
+        Super.PostBeginPlay();
+        A_AttachLight('DTMRevenantPowerGlow', DynamicLight.PointLight,
+            Color(255, 45, 15), 104, 104, DynamicLight.LF_ATTENUATE);
+    }
+
+    Default
+    {
+        +COUNTITEM
+        +INVENTORY.AUTOACTIVATE
+        +INVENTORY.ALWAYSPICKUP
+        +INVENTORY.BIGPOWERUP
+        Inventory.MaxAmount 0;
+        Powerup.Type 'PowerDTMRevenantForm';
+        Powerup.Duration -30;
+        Inventory.PickupMessage "A Revenant soul rattles inside your bones!";
+        Inventory.PickupSound "misc/p_pkup";
+        Tag "REVENANT FORM";
+        Radius 18;
+        Height 24;
+        +FLOATBOB
+        +BRIGHT
+        Translation "192:207=64:79";
+    }
+    States
+    {
+    Spawn:
+        MEGA A 6 Bright;
+        Loop;
+    }
+}
+
 class DTMCyberFormPowerup : PowerupGiver
 {
     override void PostBeginPlay()
@@ -504,5 +788,21 @@ class DTMBaronFormPowerup : PowerupGiver
     Spawn:
         MEGA A 6 Bright;
         Loop;
+    }
+}
+
+// Every placed Soulsphere remains a normal Soulsphere half the time. The
+// other half becomes one uniformly random demon-form pickup.
+class DTMNormalSoulsphere : Soulsphere {}
+
+class DTMDemonSoulSpawner : RandomSpawner replaces Soulsphere
+{
+    override Name ChooseSpawn()
+    {
+        int roll = Random[DTMDemonSoul](0, 5);
+        if (roll <= 2) return 'DTMNormalSoulsphere';
+        if (roll == 3) return 'DTMBaronFormPowerup';
+        if (roll == 4) return 'DTMCyberFormPowerup';
+        return 'DTMRevenantFormPowerup';
     }
 }

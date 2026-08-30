@@ -39,6 +39,7 @@ class DTMPlayer : DoomPlayer
         Player.SideMove 1.25, 1.25;
         Player.WeaponSlot 3, "Shotgun", "DTMRiotShotgun", "SuperShotgun";
         Player.WeaponSlot 4, "Chaingun", "DTMUzi";
+        Player.WeaponSlot 5, "RocketLauncher", "DTMRevenantLauncher";
         // Normal and experimental plasma rifles share slot 6; repeated presses
         // cycle between owned variants.
         Player.WeaponSlot 6, "ID24Incinerator", "PlasmaRifle", "DTMTwinPlasmaRifle";

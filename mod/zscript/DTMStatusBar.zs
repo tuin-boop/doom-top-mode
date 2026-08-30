@@ -35,6 +35,8 @@ class DTMStatusBar : BaseStatusBar
             CPlayer.mo.FindInventory('PowerDTMBaronForm'));
         PowerDTMCyberForm cyberPower = PowerDTMCyberForm(
             CPlayer.mo.FindInventory('PowerDTMCyberForm'));
+        PowerDTMRevenantForm revenantPower = PowerDTMRevenantForm(
+            CPlayer.mo.FindInventory('PowerDTMRevenantForm'));
         int health = max(0, CPlayer.health);
         int armor = GetArmorAmount();
         DTMPlayerProgress playerProgress = DTMPlayerProgress(
@@ -49,6 +51,11 @@ class DTMStatusBar : BaseStatusBar
         {
             health = cyberPower.FormHealth;
             healthMaximum = cyberPower.FormMaxHealth;
+        }
+        else if (revenantPower)
+        {
+            health = revenantPower.FormHealth;
+            healthMaximum = revenantPower.FormMaxHealth;
         }
         int armorMaximum = playerProgress
             ? playerProgress.MaxArmorForLevel() : 200;
@@ -465,6 +472,25 @@ class DTMStatusBar : BaseStatusBar
             Fill(Color(255, 18, 28, 25), -116, -75, 232, 6,
                 DI_SCREEN_CENTER_BOTTOM);
             Fill(Color(255, 255, 120, 35), -116, -75,
+                232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
+        }
+
+        if (revenantPower)
+        {
+            double formRatio = clamp(revenantPower.EffectTics /
+                double(max(1, revenantPower.MaxEffectTics)), 0.0, 1.0);
+            int formSeconds = max(0, (revenantPower.EffectTics + 34) / 35);
+            Fill(Color(235, 0, 0, 0), -132, -104, 264, 38,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(230, 18, 8, 5), -128, -100, 256, 30,
+                DI_SCREEN_CENTER_BOTTOM);
+            DrawString(LabelFont,
+                String.Format("REVENANT FORM  //  %d SEC", formSeconds),
+                (0, -95), DI_SCREEN_CENTER_BOTTOM | DI_TEXT_ALIGN_CENTER,
+                Font.CR_RED, 1.0, scale: (1.02, 1.02));
+            Fill(Color(255, 18, 28, 25), -116, -75, 232, 6,
+                DI_SCREEN_CENTER_BOTTOM);
+            Fill(Color(255, 255, 70, 30), -116, -75,
                 232 * formRatio, 6, DI_SCREEN_CENTER_BOTTOM);
         }
     }
