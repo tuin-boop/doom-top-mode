@@ -41,12 +41,12 @@ class DTMBaronFormVisual : BaronOfHell
         BOSS AABBCCDD 3;
         Loop;
     Missile:
-        BOSS EF 4;
-        BOSS G 6;
+        BOSS EF 8;
+        BOSS G 8;
         Goto See;
     Melee:
-        BOSS EF 3;
-        BOSS G 5;
+        BOSS EF 8;
+        BOSS G 8;
         Goto See;
     }
 }
@@ -57,16 +57,28 @@ class DTMBaronWeapon : DoomWeapon
     {
         Weapon.SelectionOrder 10;
         Weapon.AmmoUse 0;
-        +WEAPON.NOAUTOFIRE
         Tag "BARON CLAWS";
+    }
+
+    action void A_StartBaronFormAttack()
+    {
+        if (!player) return;
+        PowerDTMBaronForm power = PowerDTMBaronForm(
+            player.mo.FindInventory('PowerDTMBaronForm'));
+        if (!power || !power.VisualBody) return;
+
+        FTranslatedLineTarget victim;
+        player.mo.AimLineAttack(player.mo.Angle, 104.0, victim,
+            0.0, ALF_CHECK3D);
+        if (victim.linetarget)
+            power.VisualBody.SetStateLabel('Melee');
+        else
+            power.VisualBody.SetStateLabel('Missile');
     }
 
     action void A_FireBaronForm()
     {
         if (!player) return;
-
-        PowerDTMBaronForm power = PowerDTMBaronForm(
-            player.mo.FindInventory('PowerDTMBaronForm'));
 
         // At claw range, strike immediately instead of awkwardly launching a
         // fireball through the enemy occupying the same space.
@@ -78,14 +90,10 @@ class DTMBaronWeapon : DoomWeapon
             player.mo.LineAttack(player.mo.Angle, 104.0, meleePitch, 80,
                 'Melee', 'BulletPuff', LAF_ISMELEEATTACK, victim);
             player.mo.A_StartSound("baron/melee", CHAN_WEAPON);
-            if (power && power.VisualBody)
-                power.VisualBody.SetStateLabel('Melee');
             return;
         }
 
         SpawnPlayerMissile('BaronBall');
-        if (power && power.VisualBody)
-            power.VisualBody.SetStateLabel('Missile');
     }
 
     States
@@ -100,8 +108,10 @@ class DTMBaronWeapon : DoomWeapon
         TNT1 A 1 A_Raise;
         Loop;
     Fire:
-        TNT1 A 6 A_FireBaronForm;
-        TNT1 A 10 A_ReFire;
+        // Vanilla Baron timing: eight-tic windup, attack, eight-tic recovery.
+        TNT1 A 8 A_StartBaronFormAttack;
+        TNT1 A 8 A_FireBaronForm;
+        TNT1 A 0 A_ReFire;
         Goto Ready;
     Spawn:
         BAL7 A -1 Bright;
@@ -260,8 +270,13 @@ class DTMCyberFormVisual : Cyberdemon
         CYBR DD 3;
         Loop;
     Missile:
-        CYBR E 5;
-        CYBR F 10 Bright;
+        // Match the vanilla Cyberdemon's complete three-rocket animation.
+        CYBR E 6;
+        CYBR F 12 Bright;
+        CYBR E 12;
+        CYBR F 12 Bright;
+        CYBR E 12;
+        CYBR F 12 Bright;
         Goto See;
     }
 }
@@ -272,19 +287,23 @@ class DTMCyberWeapon : DoomWeapon
     {
         Weapon.SelectionOrder 10;
         Weapon.AmmoUse 0;
-        +WEAPON.NOAUTOFIRE
         Tag "CYBER ROCKET ARM";
     }
 
-    action void A_FireCyberForm()
+    action void A_StartCyberFormBurst()
     {
         if (!player) return;
-        SpawnPlayerMissile('Rocket');
-        player.mo.A_StartSound("weapons/rocklf", CHAN_WEAPON);
         PowerDTMCyberForm power = PowerDTMCyberForm(
             player.mo.FindInventory('PowerDTMCyberForm'));
         if (power && power.VisualBody)
             power.VisualBody.SetStateLabel('Missile');
+    }
+
+    action void A_FireCyberFormRocket()
+    {
+        if (!player) return;
+        SpawnPlayerMissile('Rocket');
+        player.mo.A_StartSound("weapons/rocklf", CHAN_WEAPON);
     }
 
     States
@@ -299,8 +318,15 @@ class DTMCyberWeapon : DoomWeapon
         TNT1 A 1 A_Raise;
         Loop;
     Fire:
-        TNT1 A 6 A_FireCyberForm;
-        TNT1 A 12 A_ReFire;
+        // Authentic Cyberdemon burst: rockets at tics 6, 30, and 54, with
+        // the same 66-tic total attack cycle as the original monster.
+        TNT1 A 6 A_StartCyberFormBurst;
+        TNT1 A 12 A_FireCyberFormRocket;
+        TNT1 A 12;
+        TNT1 A 12 A_FireCyberFormRocket;
+        TNT1 A 12;
+        TNT1 A 12 A_FireCyberFormRocket;
+        TNT1 A 0 A_ReFire;
         Goto Ready;
     Spawn:
         MISL A -1 Bright;
