@@ -1,6 +1,6 @@
 # Tuin's Top Doom
 
-![Tuin's Top Doom](assets/tuins-top-doom-banner.png)
+![Tuin's Top Doom](assets/tuins-top-doom-key-art-v2.png)
 
 An experimental isometric/top-down action RPG conversion for classic Doom,
 powered by a customized UZDoom renderer.
