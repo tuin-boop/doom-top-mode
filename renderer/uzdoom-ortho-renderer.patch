@@ -163,7 +163,7 @@ index 9de1b64..f9acadd 100644
  }
  
 diff --git a/src/rendering/hwrenderer/scene/hw_bsp.cpp b/src/rendering/hwrenderer/scene/hw_bsp.cpp
-index 449362d..054dad1 100644
+index 449362d..c307bbf 100644
 --- a/src/rendering/hwrenderer/scene/hw_bsp.cpp
 +++ b/src/rendering/hwrenderer/scene/hw_bsp.cpp
 @@ -45,6 +45,7 @@ CVAR(Bool, gl_multithread, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
@@ -203,7 +203,7 @@ index 449362d..054dad1 100644
  					clipper.SafeAddClipRange(startAngle, endAngle);
  			}
  		}
-@@ -572,7 +577,18 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
+@@ -572,7 +577,20 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
  	{
  		auto thing = p->m_thing;
  		if (thing->validcount == validcount) continue;
@@ -216,14 +216,16 @@ index 449362d..054dad1 100644
 +		// particular camera diagonals. RenderOrthoProjectiles submits each of them
 +		// exactly once after traversal, independently of subsector ownership.
 +		if (Viewpoint.bDoOrtho &&
-+			((thing->flags & MF_MISSILE) != 0 || thing->GetClass()->IsDescendantOf("DTMFlyingTracer")))
++			((thing->flags & MF_MISSILE) != 0 ||
++			 thing->GetClass()->IsDescendantOf("DTMFlyingTracer") ||
++			 thing->GetClass()->IsDescendantOf("DTMPlayerSpriteBody")))
 +		{
 +			continue;
 +		}
  
  		if(Viewpoint.bDoOob && thing->Sector->isSecret() && thing->Sector->wasSecret() && !r_radarclipper) continue; // This covers things that are touching non-secret sectors
  		FIntCVar *cvar = thing->GetInfo()->distancecheck;
-@@ -588,6 +604,7 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
+@@ -588,6 +606,7 @@ void HWDrawInfo::RenderThings(subsector_t * sub, sector_t * sector)
  		// If this thing is in a map section that's not in view it can't possibly be visible
  		if (CurrentMapSections[thing->subsector->mapsection])
  		{
@@ -231,15 +233,15 @@ index 449362d..054dad1 100644
  			HWSprite sprite;
  
  			// [Nash] draw sprite shadow
-@@ -1005,6 +1022,39 @@ void HWDrawInfo::RenderOrthoNoFog()
+@@ -1005,6 +1024,40 @@ void HWDrawInfo::RenderOrthoNoFog()
  	}
  }
  
-+// Orthographic views can display a projectile even when the perspective-oriented
-+// BSP/radar traversal rejects the subsector that owns it. RenderThings deliberately
-+// leaves these actors unclaimed in orthographic mode, so this pass becomes their
-+// single authoritative submission path rather than an unreliable fallback.
-+// Depth testing still handles walls and other world geometry normally.
++// Orthographic views can display a projectile or the top-down player body even
++// when the perspective-oriented BSP/radar traversal rejects the subsector that
++// owns it. RenderThings deliberately leaves these actors unclaimed in orthographic
++// mode, so this pass becomes their single authoritative submission path rather
++// than an unreliable fallback.
 +void HWDrawInfo::RenderOrthoProjectiles()
 +{
 +	if (!Viewpoint.bDoOrtho) return;
@@ -253,7 +255,8 @@ index 449362d..054dad1 100644
 +
 +			const bool isProjectile = (thing->flags & MF_MISSILE) != 0;
 +			const bool isDoomTopTracer = thing->GetClass()->IsDescendantOf("DTMFlyingTracer");
-+			if (!isProjectile && !isDoomTopTracer) continue;
++			const bool isDoomTopPlayerBody = thing->GetClass()->IsDescendantOf("DTMPlayerSpriteBody");
++			if (!isProjectile && !isDoomTopTracer && !isDoomTopPlayerBody) continue;
 +			if (thing->Sector == nullptr || thing->subsector == nullptr) continue;
 +
 +			thing->validcount = validcount;
@@ -271,7 +274,7 @@ index 449362d..054dad1 100644
  void HWDrawInfo::RenderBSP(void *node, bool drawpsprites)
  {
  	ClearDitherTargets();
-@@ -1044,6 +1094,8 @@ void HWDrawInfo::RenderBSP(void *node, bool drawpsprites)
+@@ -1044,6 +1097,8 @@ void HWDrawInfo::RenderBSP(void *node, bool drawpsprites)
  		Bsp.Unclock();
  	}
  
@@ -373,6 +376,31 @@ index a3c99b1..72a737f 100644
  	bool drawBoth = false;
  	auto &vp = di->Viewpoint;
  
+diff --git a/src/rendering/hwrenderer/scene/hw_sprites.cpp b/src/rendering/hwrenderer/scene/hw_sprites.cpp
+index bdddfc5..fabaa2f 100644
+--- a/src/rendering/hwrenderer/scene/hw_sprites.cpp
++++ b/src/rendering/hwrenderer/scene/hw_sprites.cpp
+@@ -100,6 +100,12 @@ void HWSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
+ 	bool foglayer = false;
+ 	int rel = fullbright ? 0 : getExtraLight();
+ 	auto &vp = di->Viewpoint;
++	// The sprite-only top-down player body is a readability overlay. Draw it
++	// after world geometry without depth rejection so tall walls cannot erase
++	// the marine while the detached orthographic camera is following it.
++	const bool alwaysVisiblePlayerBody = vp.bDoOrtho && actor &&
++		actor->GetClass()->IsDescendantOf("DTMPlayerSpriteBody");
++	if (alwaysVisiblePlayerBody) state.SetDepthFunc(DF_Always);
+ 
+ 	if (translucent)
+ 	{
+@@ -343,6 +349,7 @@ void HWSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
+ 	state.SetAddColor(0);
+ 	state.EnableTexture(true);
+ 	state.SetDynLight(0, 0, 0);
++	if (alwaysVisiblePlayerBody) state.SetDepthFunc(DF_Less);
+ }
+ 
+ //==========================================================================
 diff --git a/src/rendering/hwrenderer/scene/hw_walls.cpp b/src/rendering/hwrenderer/scene/hw_walls.cpp
 index 5921412..a063558 100644
 --- a/src/rendering/hwrenderer/scene/hw_walls.cpp

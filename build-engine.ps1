@@ -1,21 +1,27 @@
 param(
     [string]$Source = (Join-Path $PSScriptRoot 'runtime\uzdoom-cutaway-src'),
     [ValidateSet('Release', 'RelWithDebInfo')]
-    [string]$Configuration = 'RelWithDebInfo'
+    [string]$Configuration = 'RelWithDebInfo',
+    [string]$Python = ''
 )
 
 $ErrorActionPreference = 'Stop'
 
 $upstreamCommit = '4ca590945524330d94530c0558c8d547d457e16c'
 $cmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
-$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+$pythonCommand = if (-not $Python) { Get-Command python -ErrorAction SilentlyContinue } else { $null }
 $cmake = if ($cmakeCommand) { $cmakeCommand.Source } else {
     'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 }
-$python = if ($pythonCommand) { $pythonCommand.Source } else { $null }
+$python = if ($Python) { $Python } elseif ($pythonCommand) { $pythonCommand.Source } else { $null }
+if ($python -and $python -like '*\WindowsApps\python.exe') { $python = $null }
+if (-not $python) {
+    $bundledPython = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
+    if (Test-Path -LiteralPath $bundledPython) { $python = $bundledPython }
+}
 $build = Join-Path $Source 'build-cutaway'
 $patch = Join-Path $PSScriptRoot 'renderer\uzdoom-ortho-renderer.patch'
-$target = Join-Path $PSScriptRoot 'runtime\uzdoom-cutaway'
+$target = Join-Path $PSScriptRoot 'runtime\uzdoom-experimental'
 $stock = Join-Path $PSScriptRoot 'runtime\uzdoom'
 
 if (-not (Test-Path -LiteralPath $Source)) {
