@@ -67,6 +67,15 @@ class DTMPlayer : DoomPlayer
     override void PostBeginPlay()
     {
         Super.PostBeginPlay();
+
+        // The isometric sprite projection is useful for Voxel Doom's player
+        // model, but it can push the flat vanilla marine sprite out of the
+        // orthographic view frustum at some camera angles.  Keep the special
+        // projection when PLAYA has a voxel and use the reliable billboard
+        // path when the mod is launched without Voxel Doom.
+        if (Wads.CheckNumForFullName("voxels/PLAYA.kvx") < 0)
+            A_ChangeFlag("ISOMETRICSPRITES", false);
+
         CameraView = 1;
         CameraYawCurrent = 225;
         CameraDistance = 500;
