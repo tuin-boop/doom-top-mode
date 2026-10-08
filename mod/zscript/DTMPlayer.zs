@@ -1,3 +1,45 @@
+// A detached camera can suppress its owning pawn's flat sprite even though
+// voxel/model representations remain visible.  This harmless visual actor is
+// used only without a player voxel and mirrors the real pawn frame-for-frame.
+class DTMPlayerSpriteBody : Actor
+{
+    Default
+    {
+        Radius 1;
+        Height 1;
+        +NOBLOCKMAP
+        +NOGRAVITY
+        +NOINTERACTION
+    }
+
+    override void Tick()
+    {
+        Super.Tick();
+        if (!tracer)
+        {
+            Destroy();
+            return;
+        }
+
+        SetOrigin(tracer.pos, false);
+        Angle = tracer.Angle;
+        Pitch = tracer.Pitch;
+        Roll = tracer.Roll;
+        sprite = tracer.sprite;
+        frame = tracer.frame;
+        Scale = tracer.Scale;
+        Translation = tracer.Translation;
+        A_SetRenderStyle(tracer.Alpha, tracer.GetRenderStyle());
+    }
+
+    States
+    {
+    Spawn:
+        TNT1 A -1;
+        Stop;
+    }
+}
+
 class DTMPlayer : DoomPlayer
 {
     static const double CameraYaw[] = {180, 225, 270, 315, 0, 45, 90, 135};
@@ -28,6 +70,8 @@ class DTMPlayer : DoomPlayer
     double AimCursorY;
     double PreviousAimCursorX;
     double PreviousAimCursorY;
+    bool HasPlayerVoxel;
+    Actor SpriteBody;
 
     Default
     {
@@ -73,8 +117,13 @@ class DTMPlayer : DoomPlayer
         // orthographic view frustum at some camera angles.  Keep the special
         // projection when PLAYA has a voxel and use the reliable billboard
         // path when the mod is launched without Voxel Doom.
-        if (Wads.CheckNumForFullName("voxels/PLAYA.kvx") < 0)
+        HasPlayerVoxel = Wads.CheckNumForFullName("voxels/PLAYA.kvx") >= 0;
+        if (!HasPlayerVoxel)
+        {
             A_ChangeFlag("ISOMETRICSPRITES", false);
+            SpriteBody = Actor.Spawn('DTMPlayerSpriteBody', pos, ALLOW_REPLACE);
+            if (SpriteBody) SpriteBody.tracer = self;
+        }
 
         CameraView = 1;
         CameraYawCurrent = 225;
@@ -272,6 +321,12 @@ class DTMPlayer : DoomPlayer
 
     override void Tick()
     {
+        if (!HasPlayerVoxel && !SpriteBody)
+        {
+            SpriteBody = Actor.Spawn('DTMPlayerSpriteBody', pos, ALLOW_REPLACE);
+            if (SpriteBody) SpriteBody.tracer = self;
+        }
+
         if (player.camera == player.mo)
         {
             if (StoredCamera) player.camera = StoredCamera;
